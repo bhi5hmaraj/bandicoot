@@ -1,6 +1,6 @@
 # Frontend UI Design: Bandicoot RMAB Dashboard
 
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Draft
 **Last Updated:** 2025-11-23
 
@@ -9,19 +9,26 @@
 ## 1. Overview
 
 ### Purpose
-Build a simple, static Vue.js dashboard served from FastAPI to provide Suvita program managers and health workers with:
+Build a simple, multi-page web application with server-side routing to provide Suvita program managers and health workers with:
 - Real-time visibility into RMAB recommendations
 - Model performance monitoring
 - Basic system administration capabilities
 
+### Architecture: Multi-Page Application (MPA)
+- **Server-side routing**: FastAPI serves HTML templates via Jinja2
+- **Traditional navigation**: Full page loads between routes
+- **Progressive enhancement**: Vue 3 for interactive components on each page
+- **No client-side routing**: No Vue Router, no SPA shell
+
 ### Goals
-- **Simplicity**: Single-page application, minimal dependencies
-- **Static deployment**: Pre-built Vue app served as static files from FastAPI
+- **Simplicity**: Traditional web pages, minimal JavaScript
+- **Server-rendered**: FastAPI templates with Jinja2
 - **Mobile-friendly**: Responsive design for field workers on phones/tablets
-- **Fast iteration**: No separate backend needed, uses existing FastAPI endpoints
-- **Self-contained**: All assets bundled, works offline after initial load
+- **Fast iteration**: Templates live alongside API code
+- **Progressive enhancement**: Works without JavaScript, enhanced with Vue
 
 ### Non-Goals (Out of Scope for MVP)
+- ❌ Single-page application (SPA) architecture
 - ❌ Real-time updates (polling/websockets)
 - ❌ User authentication UI (rely on API keys for now)
 - ❌ Complex data visualization (charts/graphs)
@@ -67,11 +74,15 @@ Build a simple, static Vue.js dashboard served from FastAPI to provide Suvita pr
 
 ---
 
-## 3. Page Structure
+## 3. Routes & Pages
+
+All routes are server-side FastAPI routes that render Jinja2 templates.
 
 ### 3.1 Main Dashboard (Home)
 
-**Route:** `/`
+**Route:** `GET /` or `GET /dashboard`
+**Template:** `templates/dashboard.html`
+**Handler:** `app/web/routes.py::dashboard()`
 
 **Layout:**
 ```
@@ -106,18 +117,28 @@ Build a simple, static Vue.js dashboard served from FastAPI to provide Suvita pr
 └─────────────────────────────────────────┘
 ```
 
-**Components:**
-- `Header` - App title, health indicator, admin actions
-- `QuickStats` - 4 metric cards
-- `RecommendationPanel` - Form to generate recommendations
-- `RecommendationList` - Scrollable list of caregivers
-- `CaregiverCard` - Individual caregiver item
+**Server-Side Data:**
+- Fetches health status from API
+- Pre-loads recent recommendations (if any)
+- User context (if authenticated)
+
+**Interactive Components (Vue):**
+- `RecommendationForm` - Generate recommendations with Vue reactivity
+- `CaregiverList` - Client-side filtering and sorting
+
+**Navigation:**
+```html
+<a href="/model">Model Info</a>
+<a href="/settings">Settings</a>
+```
 
 ---
 
 ### 3.2 Model Info Page
 
-**Route:** `/model`
+**Route:** `GET /model`
+**Template:** `templates/model.html`
+**Handler:** `app/web/routes.py::model_info()`
 
 **Purpose:** Show model training details and cluster summaries
 
@@ -149,16 +170,27 @@ Build a simple, static Vue.js dashboard served from FastAPI to provide Suvita pr
 └─────────────────────────────────────────┘
 ```
 
-**Components:**
-- `ModelStats` - Training information
-- `ClusterTable` - Table of cluster summaries
-- `AdminActions` - Retrain/export buttons
+**Server-Side Data:**
+- Cluster summary from API
+- Model training metadata
+- Last trained timestamp
+
+**Interactive Components (Vue):**
+- `RetrainButton` - Trigger retraining with loading state
+- `ClusterTable` - Sortable cluster summary
+
+**Navigation:**
+```html
+<a href="/dashboard">Back to Dashboard</a>
+```
 
 ---
 
 ### 3.3 Settings Page (Admin)
 
-**Route:** `/settings`
+**Route:** `GET /settings`
+**Template:** `templates/settings.html`
+**Handler:** `app/web/routes.py::settings()`
 
 **Purpose:** Configure model parameters and system settings
 
@@ -188,159 +220,126 @@ Build a simple, static Vue.js dashboard served from FastAPI to provide Suvita pr
 └─────────────────────────────────────────┘
 ```
 
-**Components:**
-- `SettingsForm` - Editable parameter inputs
-- `SaveActions` - Save/reset buttons
+**Server-Side Data:**
+- Current settings from config
+- Default values
 
----
+**Interactive Components (Vue):**
+- `SettingsForm` - Form with validation and submission
 
-## 4. Component Architecture
+**Form Submission:**
+- POST to `/settings` with form data
+- Server updates config and re-renders page
 
-### Component Tree
-```
-App
-├── Header
-│   ├── AppTitle
-│   ├── HealthIndicator
-│   └── AdminMenu
-├── Router
-│   ├── DashboardPage
-│   │   ├── QuickStats
-│   │   │   └── StatCard (×4)
-│   │   ├── RecommendationPanel
-│   │   │   ├── BudgetInput
-│   │   │   ├── FilterBar
-│   │   │   └── ActionButtons
-│   │   └── RecommendationList
-│   │       └── CaregiverCard (×N)
-│   ├── ModelPage
-│   │   ├── ModelStats
-│   │   ├── ClusterTable
-│   │   └── AdminActions
-│   └── SettingsPage
-│       ├── SettingsForm
-│       └── SaveActions
-└── Footer
-```
-
-### Key Components Detail
-
-#### `Header.vue`
-**Props:** None
-**State:** `modelHealth` (from API)
-**Methods:** `checkHealth()`, `triggerRetrain()`
-
-**Template:**
-```vue
-<template>
-  <header class="app-header">
-    <h1>🐾 Bandicoot RMAB</h1>
-    <HealthIndicator :status="modelHealth" />
-    <button @click="triggerRetrain" class="btn-retrain">
-      Retrain Model
-    </button>
-  </header>
-</template>
+**Navigation:**
+```html
+<a href="/dashboard">Back to Dashboard</a>
 ```
 
 ---
 
-#### `QuickStats.vue`
-**Props:** None
-**State:** `stats` (from API `/health`)
-**Computed:** `formattedStats`
+## 4. Template & Component Architecture
 
-**Displays:**
-- Total active caregivers
-- Today's recommendation budget
-- Average priority score
-- Model version
+### Page-Level Structure
 
----
+Each page is a Jinja2 template that extends a base layout:
 
-#### `RecommendationPanel.vue`
-**Props:** None
-**State:**
-- `budget: number = 50`
-- `filterDistrict: string = 'All'`
-- `filterState: string = 'All'`
-- `loading: boolean = false`
+```
+templates/
+├── base.html                    # Base layout with header/footer
+├── dashboard.html               # Extends base, adds dashboard content
+├── model.html                   # Extends base, adds model info
+└── settings.html                # Extends base, adds settings form
+```
 
-**Methods:**
-- `generateRecommendations()` - POST to `/recommend`
-- `exportCSV()` - Download recommendations as CSV
-- `loadMore()` - Pagination
+### Vue Components Per Page
 
-**Emits:** `recommendations-loaded`
+**Dashboard Page (`dashboard.html`):**
+- `RecommendationForm` - Form to generate recommendations
+- `CaregiverList` - Interactive list with filtering
 
----
+**Model Page (`model.html`):**
+- `RetrainButton` - Trigger retraining
+- `ClusterTable` - Sortable table
 
-#### `CaregiverCard.vue`
-**Props:**
-- `caregiver: Object` - {id, priority, state, cluster, reason}
+**Settings Page (`settings.html`):**
+- `SettingsForm` - Parameter configuration form
 
-**Methods:**
-- `markContacted()` - POST to `/update_state`
-- `viewDetails()` - Navigate to detail page (future)
+**Shared Components (all pages):**
+- `HealthIndicator` - Shows model health in header
+- `LoadingSpinner` - Loading states
 
-**Template:**
-```vue
-<template>
-  <div class="caregiver-card" :class="stateClass">
-    <div class="card-header">
-      <span class="id">{{ caregiver.caregiver_id }}</span>
-      <span class="priority">{{ caregiver.priority_score.toFixed(2) }}</span>
-      <span class="badge">{{ stateBadge }}</span>
-    </div>
-    <div class="card-body">
-      <p class="cluster">Cluster {{ caregiver.cluster_id }}</p>
-      <p class="reason">{{ caregiver.reason }}</p>
-    </div>
-    <div class="card-actions">
-      <button @click="markContacted" class="btn-primary">
-        Mark Contacted
-      </button>
-      <button @click="viewDetails" class="btn-secondary">
-        Details
-      </button>
-    </div>
-  </div>
-</template>
+### Vue Instance Per Page
+
+Each page creates its own Vue instance:
+
+```javascript
+// In dashboard.html
+<script>
+const { createApp } = Vue;
+
+createApp({
+  data() {
+    return {
+      recommendations: [],
+      budget: 50,
+      loading: false
+    }
+  },
+  methods: {
+    async generateRecommendations() {
+      this.loading = true;
+      const response = await fetch('/api/v1/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ budget: this.budget })
+      });
+      this.recommendations = await response.json();
+      this.loading = false;
+    }
+  }
+}).mount('#app');
+</script>
 ```
 
 ---
 
 ## 5. Technology Stack
 
-### Frontend Framework
-**Vue 3** (Composition API)
-- **Why:** Lightweight, gentle learning curve, excellent docs
-- **Alternative considered:** React (more complex, larger bundle)
+### Backend Framework
+**FastAPI with Jinja2 Templates**
+- **Why:** Already using FastAPI, Jinja2 built-in, server-side rendering
+- **Templates:** HTML templates with Jinja2 syntax
 
-### Build Tool
-**Vite**
-- **Why:** Fast dev server, optimized production builds
-- **Output:** Static HTML/CSS/JS files
+### Frontend Enhancement
+**Vue 3** (via CDN, no build step)
+- **Why:** Lightweight, progressive enhancement, works without build tools
+- **Usage:** Inline `<script>` tags in templates, one Vue instance per page
+- **CDN:** `https://unpkg.com/vue@3/dist/vue.global.js`
 
 ### UI Library
-**PicoCSS** (classless CSS framework)
+**PicoCSS** (classless CSS framework via CDN)
 - **Why:** Minimal, semantic HTML, no class names needed
-- **Alternative:** Tailwind (more verbose, larger bundle)
 - **Size:** ~10KB gzipped
+- **CDN:** `https://unpkg.com/@picocss/pico@latest/css/pico.min.css`
 
 ### State Management
-**Vue 3 Composition API** (no Vuex/Pinia needed for MVP)
-- **Why:** Simple, built-in, sufficient for small app
-- **State:** Kept in composables (`useRecommendations`, `useModelHealth`)
+**No global state** - each page is independent
+- **Why:** Multi-page app, state resets on navigation
+- **Per-page state:** Vue reactive data() on each page
 
 ### HTTP Client
-**Fetch API** (native)
+**Fetch API** (native, no library)
 - **Why:** No external dependency, modern browsers only
-- **Wrapper:** Simple `api.js` utility
+- **Used in:** Inline JavaScript in templates
 
 ### Routing
-**Vue Router 4**
-- **Routes:** `/`, `/model`, `/settings`
+**Server-side routing** (FastAPI routes)
+- **No client-side router:** Traditional `<a href>` links
+- **Routes:**
+  - `GET /` → `templates/dashboard.html`
+  - `GET /model` → `templates/model.html`
+  - `GET /settings` → `templates/settings.html`
 
 ### Icons
 **Unicode Emojis** (no icon library)
@@ -352,118 +351,172 @@ App
 ## 6. File Structure
 
 ```
-frontend/                      # Vue app source
-├── public/
-│   ├── favicon.ico
-│   └── robots.txt
-├── src/
-│   ├── main.js               # App entry point
-│   ├── App.vue               # Root component
-│   ├── router/
-│   │   └── index.js          # Route configuration
-│   ├── views/
-│   │   ├── DashboardPage.vue
-│   │   ├── ModelPage.vue
-│   │   └── SettingsPage.vue
-│   ├── components/
-│   │   ├── Header.vue
-│   │   ├── Footer.vue
-│   │   ├── QuickStats.vue
-│   │   ├── RecommendationPanel.vue
-│   │   ├── RecommendationList.vue
-│   │   ├── CaregiverCard.vue
-│   │   ├── ModelStats.vue
-│   │   ├── ClusterTable.vue
-│   │   └── SettingsForm.vue
-│   ├── composables/
-│   │   ├── useApi.js         # API client wrapper
-│   │   ├── useRecommendations.js
-│   │   └── useModelHealth.js
-│   ├── assets/
-│   │   ├── main.css          # Global styles
-│   │   └── logo.svg
-│   └── utils/
-│       ├── format.js         # Date/number formatting
-│       └── export.js         # CSV export logic
-├── package.json
-├── vite.config.js
-└── README.md
+app/
+├── main.py                    # FastAPI app (already exists)
+├── web/                       # NEW: Web UI routes
+│   ├── __init__.py
+│   └── routes.py              # HTML route handlers
+├── templates/                 # NEW: Jinja2 templates
+│   ├── base.html              # Base layout (header, footer, nav)
+│   ├── dashboard.html         # Dashboard page
+│   ├── model.html             # Model info page
+│   └── settings.html          # Settings page
+└── static/                    # NEW: Static assets
+    ├── css/
+    │   └── custom.css         # Custom styles (in addition to PicoCSS)
+    ├── js/
+    │   └── utils.js           # Shared JavaScript utilities
+    └── images/
+        └── logo.svg           # App logo
 
-dist/                          # Production build output
-└── (served by FastAPI as static files)
+bandicoot/                     # Core library (already exists)
+└── ...
+
+tests/
+├── test_api_integration.py    # API tests (already exists)
+└── test_web_routes.py         # NEW: Web UI tests
 ```
+
+**Key Changes from SPA:**
+- ❌ No `frontend/` directory
+- ❌ No `package.json`, `vite.config.js`, build step
+- ✅ Templates live in `app/templates/`
+- ✅ Static files in `app/static/`
+- ✅ Vue loaded via CDN (no npm install)
 
 ---
 
-## 7. API Integration
+## 7. Server-Side Rendering & API Integration
 
-### API Client (`composables/useApi.js`)
+### Jinja2 Template Setup
 
-```javascript
-const API_BASE = '/api/v1';
+**In `app/main.py`:**
+```python
+from fastapi import FastAPI
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-export function useApi() {
-  const get = async (endpoint) => {
-    const response = await fetch(`${API_BASE}${endpoint}`);
-    if (!response.ok) throw new Error(response.statusText);
-    return response.json();
-  };
+app = FastAPI()
 
-  const post = async (endpoint, data) => {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error(response.statusText);
-    return response.json();
-  };
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-  return { get, post };
+# Setup templates
+templates = Jinja2Templates(directory="app/templates")
+```
+
+### HTML Route Handlers
+
+**In `app/web/routes.py`:**
+```python
+from fastapi import APIRouter, Request
+from fastapi.templating import Jinja2Templates
+from app.dependencies import get_recommender
+
+router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
+
+@router.get("/")
+async def dashboard(request: Request):
+    """Render dashboard page."""
+    recommender = get_recommender()
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "model_loaded": recommender.is_fitted,
+        "page_title": "Dashboard"
+    })
+
+@router.get("/model")
+async def model_info(request: Request):
+    """Render model info page."""
+    recommender = get_recommender()
+
+    if recommender.is_fitted:
+        cluster_summary = recommender.get_cluster_summary().to_dict('records')
+    else:
+        cluster_summary = []
+
+    return templates.TemplateResponse("model.html", {
+        "request": request,
+        "model_loaded": recommender.is_fitted,
+        "clusters": cluster_summary,
+        "page_title": "Model Info"
+    })
+
+@router.get("/settings")
+async def settings(request: Request):
+    """Render settings page."""
+    from app.config import get_settings
+    config = get_settings()
+
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "config": config,
+        "page_title": "Settings"
+    })
+```
+
+### Client-Side API Calls (from templates)
+
+**Inline JavaScript in templates:**
+```html
+<!-- In dashboard.html -->
+<script>
+async function generateRecommendations(budget) {
+  const response = await fetch('/api/v1/recommend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ budget: budget })
+  });
+
+  if (!response.ok) throw new Error('Failed to generate recommendations');
+
+  return await response.json();
 }
+</script>
 ```
 
 ### Endpoint Usage
 
-| UI Action | API Endpoint | Method |
-|-----------|--------------|--------|
-| Load health status | `/health` | GET |
-| Generate recommendations | `/recommend` | POST |
-| Train model | `/train_clusters` | POST |
-| Precompute indices | `/precompute_indices` | POST |
-| Update caregiver state | `/update_state` | POST |
+| UI Action | API Endpoint | Method | Called From |
+|-----------|--------------|--------|-------------|
+| Load page | `GET /` | GET | Browser navigation |
+| Load health status | `GET /api/v1/health` | GET | Page load (AJAX) |
+| Generate recommendations | `POST /api/v1/recommend` | POST | Button click (AJAX) |
+| Train model | `POST /api/v1/train_clusters` | POST | Button click (AJAX) |
+| Update settings | `POST /settings` | POST | Form submission (page reload) |
 
 ---
 
-## 8. Serving from FastAPI
+## 8. Route Priority & Mounting
 
-### Static File Serving
+### Route Order in FastAPI
 
 **In `app/main.py`:**
 ```python
-from fastapi.staticfiles import StaticFiles
+from app.api import routes as api_routes
+from app.web import routes as web_routes
 
-# Mount Vue app
-app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+# 1. API routes (highest priority)
+app.include_router(api_routes.router, prefix="/api/v1", tags=["API"])
+
+# 2. Web UI routes
+app.include_router(web_routes.router, tags=["Web"])
+
+# 3. Static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 ```
 
-**Route Priority:**
-1. API routes (`/api/v1/*`) - handled first
-2. Static files (`/*`) - fallback to Vue app
+**Priority:**
+1. `/api/v1/*` - API endpoints (JSON responses)
+2. `/`, `/model`, `/settings` - HTML pages
+3. `/static/*` - CSS, JS, images
 
-**Build & Deploy Workflow:**
-```bash
-# 1. Build Vue app
-cd frontend
-npm run build  # → outputs to dist/
-
-# 2. Deploy FastAPI (includes dist/ folder)
-docker build -t bandicoot-api .
-docker run -p 8080:8080 bandicoot-api
-
-# 3. Access UI
-open http://localhost:8080
-```
+**No build step needed:**
+- Templates are rendered on-the-fly
+- Static assets served directly
+- Vue loaded from CDN
 
 ---
 
@@ -486,142 +539,361 @@ open http://localhost:8080
 
 ### Local Development
 
-**Terminal 1 (Backend):**
+**Single server (FastAPI serves everything):**
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-**Terminal 2 (Frontend):**
-```bash
-cd frontend
-npm run dev  # Vite dev server on port 5173
-```
+**Access:**
+- Web UI: http://localhost:8000/
+- API docs: http://localhost:8000/docs
+- API endpoints: http://localhost:8000/api/v1/*
 
-**Frontend proxies API calls to backend:**
-```javascript
-// vite.config.js
-export default {
-  server: {
-    proxy: {
-      '/api': 'http://localhost:8000'
-    }
-  }
-}
-```
+**Template changes:**
+- Edit `app/templates/*.html` directly
+- Refresh browser to see changes
+- No build step needed
 
-### Production Build
-```bash
-cd frontend
-npm run build
-# Output: dist/ folder ready to serve
-```
+**CSS/JS changes:**
+- Edit `app/static/css/*.css` or `app/static/js/*.js`
+- Hard refresh browser (Ctrl+Shift+R) to clear cache
+
+### No Build Step
+- ✅ No `npm install`
+- ✅ No `npm run build`
+- ✅ No `package.json`
+- ✅ Templates rendered on-the-fly
+- ✅ Static files served directly
 
 ---
 
 ## 11. Error Handling
 
-### API Error Display
-```vue
-<template>
+### Client-Side Error Display (Vue via CDN)
+
+**Inline in templates:**
+```html
+<!-- In dashboard.html -->
+<div id="app">
   <div v-if="error" class="alert alert-error">
-    {{ error.message }}
+    {{ error }}
     <button @click="retry">Retry</button>
   </div>
-</template>
+</div>
 
-<script setup>
-import { ref } from 'vue';
+<script>
+const { createApp } = Vue;
 
-const error = ref(null);
-
-async function loadData() {
-  try {
-    error.value = null;
-    // API call...
-  } catch (e) {
-    error.value = { message: 'Failed to load data. Please try again.' };
+createApp({
+  data() {
+    return {
+      error: null,
+      loading: false
+    }
+  },
+  methods: {
+    async loadData() {
+      try {
+        this.error = null;
+        this.loading = true;
+        // API call...
+      } catch (e) {
+        this.error = 'Failed to load data. Please try again.';
+      } finally {
+        this.loading = false;
+      }
+    },
+    retry() {
+      this.loadData();
+    }
   }
-}
+}).mount('#app');
 </script>
 ```
 
+### Server-Side Error Handling
+
+**In route handlers (`app/web/routes.py`):**
+```python
+from fastapi import Request, HTTPException
+from fastapi.responses import HTMLResponse
+
+@router.get("/dashboard")
+async def dashboard(request: Request):
+    try:
+        recommender = get_recommender()
+        # ... fetch data
+        return templates.TemplateResponse("dashboard.html", {
+            "request": request,
+            "model_loaded": recommender.is_fitted
+        })
+    except Exception as e:
+        logger.error(f"Dashboard error: {e}")
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "error_message": "Unable to load dashboard. Please try again."
+        })
+```
+
 ### Loading States
-- Spinner during API calls
-- Skeleton screens for lists
-- Disabled buttons while processing
+- Spinner during AJAX calls (Vue reactive data)
+- Server-side loading indicators for initial page load
+- Disabled buttons while processing (`<button :disabled="loading">`)
+- Simple CSS animations (no complex skeleton screens)
 
 ---
 
 ## 12. Performance Considerations
 
-### Bundle Size Target
-- **Total JS:** < 100KB gzipped
-- **Total CSS:** < 20KB gzipped
-- **Initial load:** < 2 seconds on 3G
+### Asset Size Targets
+- **Vue 3 (CDN):** ~34KB gzipped (one-time download, cached)
+- **PicoCSS (CDN):** ~10KB gzipped (one-time download, cached)
+- **Custom CSS:** < 5KB gzipped
+- **Custom JS per page:** < 10KB gzipped
+- **Initial load (first visit):** < 2 seconds on 3G
+- **Subsequent pages:** < 500ms (CDN assets cached)
 
-### Optimizations
-- Code splitting by route
-- Lazy load components not in viewport
-- Minify/compress assets in production
-- Cache static assets (1 year TTL)
+### Optimizations (No Build Step)
+
+**Server-Side:**
+- Enable HTTP/2 for multiplexing
+- Compress HTML responses (gzip/brotli)
+- Cache rendered templates (if data is static)
+- Use FastAPI's async handlers for concurrency
+
+**Client-Side:**
+- Load Vue and PicoCSS from CDN with `crossorigin` attribute
+- Use browser cache for static assets (long TTL)
+- Defer non-critical JavaScript with `defer` attribute
+- Minimize inline JavaScript (extract to `/static/js/utils.js`)
+
+**CDN Configuration:**
+```html
+<!-- In base.html -->
+<link rel="stylesheet"
+      href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"
+      crossorigin="anonymous">
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"
+        crossorigin="anonymous"
+        defer></script>
+```
+
+**No Code Splitting:**
+- Each page loads independently (natural route-based splitting)
+- No need for Webpack/Vite code splitting
+- Browser navigates to new page, loads only what's needed
+
+**Static Asset Caching:**
+```python
+# In app/main.py
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Add cache headers in production (nginx/CDN level)
+# Cache-Control: public, max-age=31536000
+```
 
 ---
 
 ## 13. Security
 
-### Client-Side
-- **No sensitive data** in localStorage/sessionStorage
-- **API key** passed via HTTP headers (not exposed in UI)
-- **Input validation** on all forms
-- **XSS prevention** via Vue's automatic escaping
+### Server-Side Security (Primary)
+
+**Template Rendering (Jinja2):**
+- **Auto-escaping enabled** by default (XSS prevention)
+- **Never use `| safe` filter** unless absolutely necessary
+- **Validate all user input** before rendering
+- **Sanitize data** from API responses before passing to templates
+
+```python
+# In app/web/routes.py
+from markupsafe import escape
+
+@router.get("/dashboard")
+async def dashboard(request: Request):
+    user_input = request.query_params.get("filter", "")
+    safe_input = escape(user_input)  # Escape HTML entities
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "filter": safe_input  # Safe to render
+    })
+```
+
+**CSRF Protection:**
+- Use `POST` for state-changing operations
+- Add CSRF tokens to forms (FastAPI middleware available)
+- Validate origin headers
+
+### Client-Side Security
+
+**Vue Templates:**
+- **XSS prevention** via Vue's automatic escaping (`{{ }}` is safe)
+- **Never use `v-html`** with user-generated content
+- **Validate forms** client-side before submission (UX)
+- **Re-validate server-side** (security)
+
+**Sensitive Data:**
+- **No API keys in JavaScript** - handle auth server-side
+- **No secrets in localStorage/sessionStorage**
+- **No sensitive data in URL parameters**
 
 ### API Communication
-- **HTTPS only** in production
-- **CORS** configured on FastAPI backend
+- **HTTPS only** in production (enforce with HSTS headers)
+- **CORS** configured restrictively on FastAPI backend
+- **API key authentication** via HTTP-only cookies or headers (not JavaScript-accessible)
 - **Rate limiting** on API endpoints (backend responsibility)
+- **Content Security Policy (CSP)** headers to prevent XSS
+
+**Example CSP Header:**
+```python
+# In app/main.py
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' https://unpkg.com 'unsafe-inline'; "
+        "style-src 'self' https://unpkg.com 'unsafe-inline';"
+    )
+    return response
+```
 
 ---
 
 ## 14. Testing Strategy
 
-### Unit Tests (Vitest)
-- Test composables (`useApi`, `useRecommendations`)
-- Test utility functions (`format`, `export`)
+### Server-Side Template Tests (pytest)
 
-### Component Tests (Vue Test Utils)
-- Test `CaregiverCard` rendering
-- Test `RecommendationPanel` form submission
+**Test route handlers and template rendering:**
+```python
+# In tests/test_web_routes.py
+from fastapi.testclient import TestClient
+from app.main import app
 
-### E2E Tests (Playwright - Optional)
-- Test full recommendation workflow
-- Test error handling
+client = TestClient(app)
 
-**For MVP:** Manual testing sufficient, automate later.
+def test_dashboard_loads():
+    """Test dashboard page renders."""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert b"Bandicoot RMAB" in response.content
+    assert b"dashboard" in response.content
+
+def test_model_page_before_training():
+    """Test model page shows 'not trained' message."""
+    response = client.get("/model")
+    assert response.status_code == 200
+    assert b"Model not yet trained" in response.content or b"No clusters" in response.content
+
+def test_settings_page_loads():
+    """Test settings page renders with defaults."""
+    response = client.get("/settings")
+    assert response.status_code == 200
+    assert b"Settings" in response.content
+    assert b"Number of Clusters" in response.content
+```
+
+### JavaScript Unit Tests (Optional - pytest-js or Jest)
+
+**Test utility functions in `/static/js/utils.js`:**
+```javascript
+// tests/test_utils.js (if we add Jest later)
+import { formatDate, exportToCSV } from '../app/static/js/utils.js';
+
+test('formatDate formats ISO string correctly', () => {
+  expect(formatDate('2025-11-23T10:30:00Z')).toBe('Nov 23, 2025');
+});
+
+test('exportToCSV generates valid CSV', () => {
+  const data = [{ id: 1, name: 'Test' }];
+  const csv = exportToCSV(data);
+  expect(csv).toContain('id,name');
+  expect(csv).toContain('1,Test');
+});
+```
+
+### E2E Tests (Playwright - Recommended for MVP)
+
+**Test full user workflows:**
+```python
+# tests/test_e2e.py (using Playwright with Python)
+from playwright.sync_api import sync_playwright
+
+def test_recommendation_workflow():
+    """Test generating recommendations end-to-end."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+
+        # Navigate to dashboard
+        page.goto("http://localhost:8000/")
+        assert "Bandicoot" in page.title()
+
+        # Train model first
+        page.goto("http://localhost:8000/model")
+        page.click("text=Retrain Model")
+        page.wait_for_selector("text=Training complete", timeout=30000)
+
+        # Generate recommendations
+        page.goto("http://localhost:8000/")
+        page.fill("input[name='budget']", "10")
+        page.click("text=Generate")
+        page.wait_for_selector(".caregiver-card")
+
+        # Verify recommendations appear
+        cards = page.query_selector_all(".caregiver-card")
+        assert len(cards) == 10
+
+        browser.close()
+```
+
+### Manual Testing Checklist (MVP Priority)
+
+**For each page:**
+- [ ] Page loads without errors (check browser console)
+- [ ] Mobile responsive (test on phone/tablet)
+- [ ] Forms submit correctly
+- [ ] Error messages display on API failures
+- [ ] Loading states show during async operations
+- [ ] Links navigate correctly
+
+**Cross-browser testing:**
+- [ ] Chrome (latest)
+- [ ] Firefox (latest)
+- [ ] Safari (latest)
+- [ ] Mobile Safari (iOS)
+- [ ] Mobile Chrome (Android)
+
+**For MVP:** Focus on E2E tests and manual testing. Unit tests can be added later as needed.
 
 ---
 
 ## 15. Future Enhancements (Phase 2+)
 
 ### Dashboard Improvements
-- 📊 **Charts/Graphs:** Visualize recommendation trends over time
+- 📊 **Charts/Graphs:** Visualize recommendation trends over time (could use Chart.js via CDN)
 - 🔄 **Real-time updates:** WebSocket for live recommendation updates
 - 🔍 **Advanced filters:** Multi-select, date ranges, custom queries
 - 📱 **PWA:** Install as mobile app, offline support
+  - ⚠️ **Note:** PWA requires service workers and build process (would need to add Vite/Webpack)
+  - Alternative: Keep MPA and use browser "Add to Home Screen" for basic app-like experience
 
 ### Caregiver Management
-- 👤 **Caregiver profiles:** Detailed view with history
+- 👤 **Caregiver profiles:** Detailed view with history (new route: `GET /caregiver/{id}`)
 - 📝 **Notes:** Add notes to caregivers (reason for contact, outcome)
-- 📞 **Click-to-call:** Direct integration with phone dialer
+- 📞 **Click-to-call:** Direct integration with phone dialer (`<a href="tel:+1234567890">`)
 
 ### Analytics
-- 📈 **Engagement metrics:** Track intervention outcomes
+- 📈 **Engagement metrics:** Track intervention outcomes (new page: `GET /analytics`)
 - 🎯 **A/B test dashboard:** Compare treatment vs. control groups
 - 📊 **Cluster insights:** Deep dive into cluster behavior
 
 ### Admin Features
 - 👥 **User management:** Multi-user access, role-based permissions
-- 📅 **Scheduled retraining:** Auto-retrain on schedule
+- 📅 **Scheduled retraining:** Auto-retrain on schedule (backend cron job)
 - 🔔 **Notifications:** Email/SMS alerts for system events
+- 📜 **Audit log:** Track who made what changes (new page: `GET /audit`)
 
 ---
 
@@ -668,32 +940,75 @@ async function loadData() {
 
 ## 18. Implementation Plan
 
-### Week 1: Setup & Core Components
-- [ ] Initialize Vite + Vue 3 project
-- [ ] Set up router and basic layout
-- [ ] Implement Header, Footer, navigation
-- [ ] Build API client composable
-- [ ] **Milestone:** App skeleton with routing
+### Phase 1: Setup & Base Template (2-3 days)
+- [ ] Create `app/templates/` and `app/static/` directories
+- [ ] Implement `base.html` with header, footer, navigation
+- [ ] Add PicoCSS and Vue 3 via CDN to base template
+- [ ] Create `app/web/routes.py` with route handlers
+- [ ] Mount web routes and static files in `app/main.py`
+- [ ] Create basic error template (`error.html`)
+- [ ] Test: All routes return 200 and render base layout
+- [ ] **Milestone:** Basic MPA structure working
 
-### Week 2: Dashboard Page
-- [ ] Implement QuickStats component
-- [ ] Build RecommendationPanel with form
-- [ ] Create CaregiverCard component
-- [ ] Implement CSV export
+### Phase 2: Dashboard Page (3-4 days)
+- [ ] Create `templates/dashboard.html` extending base
+- [ ] Implement route handler: `GET /` → dashboard template
+- [ ] Add server-side data: health status, recent recommendations
+- [ ] Build inline Vue instance for recommendation generation
+- [ ] Implement "Generate Recommendations" form with AJAX
+- [ ] Add caregiver list rendering with Vue
+- [ ] Implement CSV export functionality (client-side JS)
+- [ ] Add loading states and error handling
+- [ ] Test: Can generate and view recommendations
 - [ ] **Milestone:** Functional recommendation workflow
 
-### Week 3: Model & Settings Pages
-- [ ] Build ModelPage with cluster table
-- [ ] Implement SettingsPage with form
-- [ ] Add retrain functionality
+### Phase 3: Model Info Page (2-3 days)
+- [ ] Create `templates/model.html` extending base
+- [ ] Implement route handler: `GET /model` → model template
+- [ ] Add server-side data: cluster summary, training metadata
+- [ ] Render cluster summary table with Jinja2
+- [ ] Add inline Vue instance for retrain button
+- [ ] Implement retrain functionality with AJAX
+- [ ] Add loading states for training operation
+- [ ] Test: Can view model info and trigger retraining
+- [ ] **Milestone:** Model management working
+
+### Phase 4: Settings Page (2-3 days)
+- [ ] Create `templates/settings.html` extending base
+- [ ] Implement route handlers: `GET /settings` and `POST /settings`
+- [ ] Render settings form with current config values
+- [ ] Add inline Vue instance for form validation
+- [ ] Implement form submission (POST with page reload)
+- [ ] Add success/error messages after save
+- [ ] Test: Can view and update settings
 - [ ] **Milestone:** All pages complete
 
-### Week 4: Polish & Deploy
-- [ ] Mobile responsiveness testing
-- [ ] Error handling and loading states
-- [ ] Production build optimization
-- [ ] Deploy with FastAPI
-- [ ] **Milestone:** MVP UI live
+### Phase 5: Polish & Testing (2-3 days)
+- [ ] Mobile responsiveness testing (phone/tablet)
+- [ ] Cross-browser testing (Chrome, Firefox, Safari)
+- [ ] Add custom CSS for branding (`static/css/custom.css`)
+- [ ] Extract shared JS utilities to `static/js/utils.js`
+- [ ] Write E2E tests with Playwright (optional)
+- [ ] Write template rendering tests with pytest
+- [ ] Fix console errors and warnings
+- [ ] Add CSP headers and security middleware
+- [ ] Test: All success criteria met
+- [ ] **Milestone:** Production-ready UI
+
+### Phase 6: Deploy (1 day)
+- [ ] Update `Dockerfile` to include templates and static files
+- [ ] Test Docker build locally
+- [ ] Deploy to Cloud Run (or target platform)
+- [ ] Verify all routes work in production
+- [ ] Test API + UI integration end-to-end
+- [ ] **Milestone:** MVP UI live in production
+
+**Total estimated time:** 12-17 days (2.5-3.5 weeks)
+
+**Dependencies:**
+- FastAPI service layer must be complete
+- API endpoints must be functional and tested
+- Docker deployment infrastructure ready
 
 ---
 
