@@ -1,0 +1,172 @@
+digraph ImmunizationEcosystem {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+    compound=true;
+
+    // Title
+    label="Childhood Immunization Ecosystem";
+    labelloc="t";
+    fontsize=20;
+
+    // Problem Space
+    subgraph cluster_problem {
+        label="The Problem";
+        style=filled;
+        color="#ffcccc";
+        fontsize=14;
+
+        children [label="67M Children\nMissed Vaccines\n(2021-2023)", shape=ellipse, color=red, style=filled];
+        dropout [label="25-30%\nDropout Rate", shape=ellipse, color=orange, style=filled];
+        barriers [label="Barriers:\n• Forgetfulness\n• Misinformation\n• Access issues\n• Disengagement", shape=note];
+    }
+
+    // Stakeholders
+    subgraph cluster_stakeholders {
+        label="Stakeholders";
+        style=filled;
+        color="#cce5ff";
+        fontsize=14;
+
+        subgraph cluster_beneficiaries {
+            label="Beneficiaries";
+            style=dashed;
+
+            caregivers [label="Caregivers\n(Mothers, Families)", shape=ellipse];
+            children_beneficiary [label="Children\n(0-5 years)", shape=ellipse];
+        }
+
+        subgraph cluster_providers {
+            label="Service Providers";
+            style=dashed;
+
+            ngos [label="NGOs\n(Suvita, ARMMAN)", shape=component];
+            health_workers [label="Health Workers\n(ASHAs, ANMs)", shape=component];
+            clinics [label="Vaccination\nClinics", shape=component];
+        }
+
+        subgraph cluster_government {
+            label="Government";
+            style=dashed;
+
+            govt_health [label="Ministry of\nHealth", shape=component];
+            rch [label="RCH Database\n(Vaccination Records)", shape=cylinder];
+        }
+
+        subgraph cluster_tech {
+            label="Technology Partners";
+            style=dashed;
+
+            sms_provider [label="SMS Gateway\n(Twilio, etc.)", shape=component];
+            bandicoot_system [label="Bandicoot\nRMAB System", shape=component, color=yellow, style="filled,rounded"];
+        }
+    }
+
+    // Workflows
+    subgraph cluster_workflows {
+        label="Key Workflows";
+        style=filled;
+        color="#e5ffcc";
+        fontsize=14;
+
+        subgraph cluster_enrollment {
+            label="1. Enrollment";
+            style=dashed;
+
+            enrollment [label="Caregiver\nEnrolls\n(Hospital/Community)"];
+            registration [label="Register in\nNGO System"];
+            baseline [label="Collect Demographics\n(Age, District, Parity)"];
+        }
+
+        subgraph cluster_outreach {
+            label="2. Outreach (Before Bandicoot)";
+            style=dashed;
+
+            random_sms [label="Random/Heuristic\nSMS Blasts", color=orange];
+            waste [label="80% Unnecessary\n20% Missed", color=red];
+        }
+
+        subgraph cluster_bandicoot_workflow {
+            label="3. Bandicoot RMAB Workflow";
+            style=dashed;
+
+            collect_data [label="Collect Data:\n• SMS engagement\n• Clinic visits\n• Demographics"];
+            train_model [label="Weekly Training:\n• Cluster caregivers\n• Learn MDP\n• Compute Whittle indices"];
+            recommend [label="Daily Recommendations:\n• Rank by priority\n• Top-K caregivers"];
+            targeted_outreach [label="Targeted Outreach:\n• SMS to high-risk\n• Calls for critical"];
+        }
+
+        subgraph cluster_outcomes {
+            label="4. Outcomes & Feedback";
+            style=dashed;
+
+            intervention [label="Health Worker\nContacts Caregiver"];
+            response [label="Caregiver Response:\n• Opens SMS\n• Attends clinic\n• Ignores"];
+            record [label="Record Outcome\nin System"];
+            feedback_loop [label="Feed Back to\nBandicoot", color=green, style=filled];
+        }
+    }
+
+    // Impact
+    subgraph cluster_impact {
+        label="Measured Impact";
+        style=filled;
+        color="#ccffcc";
+        fontsize=14;
+
+        completion [label="↑ 80%\nVaccination\nCompletion", shape=ellipse, color=green, style=filled];
+        efficiency [label="↑ 50%\nHealth Worker\nEfficiency", shape=ellipse, color=green, style=filled];
+        cost [label="↓ 30%\nCost per\nVaccination", shape=ellipse, color=green, style=filled];
+    }
+
+    // Problem flows
+    children -> dropout;
+    barriers -> dropout;
+
+    // Stakeholder relationships
+    caregivers -> children_beneficiary [label="care for", style=dashed];
+    ngos -> health_workers [label="employ"];
+    health_workers -> caregivers [label="support"];
+    caregivers -> clinics [label="visit for vaccines"];
+    clinics -> rch [label="report to"];
+    govt_health -> rch [label="maintain"];
+    ngos -> sms_provider [label="use"];
+    ngos -> bandicoot_system [label="integrate", color=green, penwidth=2];
+
+    // Enrollment workflow
+    caregivers -> enrollment;
+    enrollment -> registration;
+    registration -> baseline;
+
+    // Before Bandicoot
+    baseline -> random_sms;
+    random_sms -> waste;
+    waste -> dropout [label="contributes to", color=red];
+
+    // Bandicoot workflow
+    baseline -> collect_data [lhead=cluster_bandicoot_workflow];
+    collect_data -> train_model;
+    train_model -> recommend;
+    recommend -> targeted_outreach;
+    targeted_outreach -> intervention [lhead=cluster_outcomes];
+
+    // Outcomes
+    intervention -> response;
+    response -> record;
+    record -> feedback_loop;
+    feedback_loop -> collect_data [label="continuous learning", color=green, penwidth=2];
+
+    // Impact
+    targeted_outreach -> completion [style=dashed, color=green];
+    targeted_outreach -> efficiency [style=dashed, color=green];
+    targeted_outreach -> cost [style=dashed, color=green];
+
+    // Bandicoot inputs/outputs
+    rch -> bandicoot_system [label="vaccination\nrecords"];
+    ngos -> bandicoot_system [label="SMS logs +\ndemographics"];
+    bandicoot_system -> health_workers [label="daily priority\nlist"];
+    bandicoot_system -> sms_provider [label="targeted\nSMS"];
+
+    // Reduce dropout
+    completion -> dropout [label="reduces", color=green, penwidth=2, dir=back];
+}

@@ -1,0 +1,66 @@
+digraph RecommendationFlow {
+    rankdir=LR;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    request [label="GET /recommend\n?budget=1000", shape=ellipse, color=blue, style=filled];
+
+    // Query
+    subgraph cluster_query {
+        label="1. Query Caregivers (50ms)";
+        style=filled;
+        color=lightblue;
+
+        fetch [label="Fetch eligible\ncaregivers"];
+        filter [label="Filter: warmup complete\nAB test group"];
+    }
+
+    // Lookup
+    subgraph cluster_lookup {
+        label="2. Lookup Indices (10ms)";
+        style=filled;
+        color=lightyellow;
+
+        redis_get [label="Redis GET\nwhittle:{cluster}:{state}"];
+        parallel [label="O(1) per caregiver\n~10ms for 200K"];
+    }
+
+    // Rank
+    subgraph cluster_rank {
+        label="3. Rank & Select (100ms)";
+        style=filled;
+        color=lightgreen;
+
+        sort [label="Sort by Whittle index\n(descending)"];
+        top_k [label="Select top-1000"];
+        enrich [label="Add context:\nreason, district"];
+    }
+
+    // Log
+    subgraph cluster_log {
+        label="4. Log & Return (50ms)";
+        style=filled;
+        color=lightcoral;
+
+        log [label="Log to PostgreSQL\nrecommendations_log"];
+        response [label="Return JSON\n+ metadata"];
+    }
+
+    result [label="Response:\n1000 caregivers\nranked by priority", shape=ellipse, color=green, style=filled];
+
+    // Flow
+    request -> fetch;
+    fetch -> filter;
+    filter -> redis_get;
+    redis_get -> parallel;
+    parallel -> sort;
+    sort -> top_k;
+    top_k -> enrich;
+    enrich -> log;
+    log -> response;
+    response -> result;
+
+    // Latency annotation
+    latency [label="Total: <500ms\n(p95 target)", shape=note, color=yellow, style=filled];
+    result -> latency [style=dashed];
+}

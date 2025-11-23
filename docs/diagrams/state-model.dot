@@ -1,0 +1,31 @@
+digraph StateModel {
+    rankdir=LR;
+    node [shape=ellipse, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // States
+    responsive [label="Responsive\n\nOpened SMS in\nlast 7 days", color=green, style=filled];
+    unresponsive [label="Unresponsive\n\nNo interaction\nfor 7+ days", color=orange, style=filled];
+
+    // Transitions with actions
+    responsive -> responsive [label="Active (SMS/Call)\nP = 0.85\n\nPassive (No contact)\nP = 0.60", color=green];
+    responsive -> unresponsive [label="Active: P = 0.15\nPassive: P = 0.40", color=orange];
+
+    unresponsive -> responsive [label="Active: P = 0.50\nPassive: P = 0.10", color=green];
+    unresponsive -> unresponsive [label="Active: P = 0.50\nPassive: P = 0.90", color=orange];
+
+    // Rewards
+    reward_r_active [label="Reward (Vaccination):\nActive: 0.80\nPassive: 0.40", shape=note, color=lightgreen, style=filled];
+    reward_u_active [label="Reward (Vaccination):\nActive: 0.30\nPassive: 0.05", shape=note, color=lightcoral, style=filled];
+
+    responsive -> reward_r_active [style=dashed];
+    unresponsive -> reward_u_active [style=dashed];
+
+    // Whittle Indices
+    index [label="Whittle Index\n(Priority Score)", shape=note, color=yellow, style=filled];
+    index_values [label="Responsive: 0.42\nUnresponsive: 0.73\n\n→ Prioritize\nUnresponsive", shape=note, color=lightblue, style=filled];
+
+    responsive -> index [style=dotted];
+    unresponsive -> index [style=dotted];
+    index -> index_values [style=dotted];
+}
