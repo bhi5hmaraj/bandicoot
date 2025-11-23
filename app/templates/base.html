@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bandicoot RMAB Dashboard{% endblock %}</title>
+
+    <!-- PicoCSS via CDN -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"
+          crossorigin="anonymous">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/custom.css') }}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong>🐾 Bandicoot RMAB</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/model">Model Info</a></li>
+                <li><a href="/settings">Settings</a></li>
+                <li>
+                    {% if model_loaded %}
+                    <span class="health-indicator healthy" title="Model is trained and ready">●</span>
+                    {% else %}
+                    <span class="health-indicator unhealthy" title="Model not trained">●</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        {% block content %}
+        <!-- Page-specific content goes here -->
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="container">
+        <hr>
+        <p>
+            <small>
+                Bandicoot RMAB v{{ version|default('1.0.0') }} |
+                <a href="/docs" target="_blank">API Docs</a> |
+                <a href="https://github.com/anthropics/bandicoot" target="_blank">GitHub</a>
+            </small>
+        </p>
+    </footer>
+
+    <!-- Vue 3 via CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"
+            crossorigin="anonymous"
+            defer></script>
+
+    <!-- Shared utilities -->
+    <script src="{{ url_for('static', path='/js/utils.js') }}" defer></script>
+
+    {% block scripts %}
+    <!-- Page-specific scripts go here -->
+    {% endblock %}
+</body>
+</html>

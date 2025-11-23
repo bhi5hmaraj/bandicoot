@@ -8,12 +8,14 @@ Restless Multi-Armed Bandits (RMAB).
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
 import time
 
 from app.config import get_settings
 from app.api import routes
+from app.web import routes as web_routes
 
 # Configure logging
 logging.basicConfig(
@@ -104,21 +106,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Include API routes
-app.include_router(routes.router, prefix="/api/v1")
+# Mount routes with priority order
+# 1. API routes (highest priority - prefixed with /api/v1)
+app.include_router(routes.router, prefix="/api/v1", tags=["API"])
 
+# 2. Static files (before web routes to avoid conflicts)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Root endpoint
-@app.get("/", tags=["Root"])
-async def root():
-    """Root endpoint with API information."""
-    return {
-        "service": settings.API_TITLE,
-        "version": settings.API_VERSION,
-        "status": "running",
-        "docs": "/docs",
-        "health": "/api/v1/health"
-    }
+# 3. Web UI routes (catch-all routes like / must be last)
+app.include_router(web_routes.router, tags=["Web"])
 
 
 if __name__ == "__main__":

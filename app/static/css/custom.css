@@ -1,0 +1,215 @@
+/* Custom styles for Bandicoot RMAB Dashboard */
+
+/* Color palette - matching design doc */
+:root {
+    --color-primary: #3B82F6;
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+    --color-danger: #EF4444;
+}
+
+/* Health indicator */
+.health-indicator {
+    display: inline-block;
+    font-size: 1.2rem;
+    line-height: 1;
+    margin-left: 0.5rem;
+}
+
+.health-indicator.healthy {
+    color: var(--color-success);
+}
+
+.health-indicator.unhealthy {
+    color: var(--color-danger);
+}
+
+/* Quick stats cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--card-background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--card-border-color);
+}
+
+.stat-card .value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-primary);
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card .label {
+    font-size: 0.875rem;
+    color: var(--muted-color);
+}
+
+/* Caregiver cards/list */
+.caregiver-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: var(--card-background-color);
+    border: 1px solid var(--card-border-color);
+    border-radius: var(--border-radius);
+}
+
+.caregiver-card .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.caregiver-card .caregiver-id {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.caregiver-card .priority-score {
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.caregiver-card .priority-score.high {
+    color: var(--color-danger);
+}
+
+.caregiver-card .state {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+}
+
+.caregiver-card .state.responsive {
+    background-color: var(--color-success);
+    color: white;
+}
+
+.caregiver-card .state.unresponsive {
+    background-color: var(--color-warning);
+    color: white;
+}
+
+.caregiver-card .reason {
+    color: var(--muted-color);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+/* Cluster table */
+.cluster-table {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.cluster-table th {
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+}
+
+.cluster-table th:hover {
+    background-color: var(--table-border-color);
+}
+
+/* Loading spinner */
+.loading-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Alert/Error messages */
+.alert {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+}
+
+.alert.alert-error {
+    background-color: #fee2e2;
+    border: 1px solid var(--color-danger);
+    color: #991b1b;
+}
+
+.alert.alert-success {
+    background-color: #d1fae5;
+    border: 1px solid var(--color-success);
+    color: #065f46;
+}
+
+.alert.alert-warning {
+    background-color: #fef3c7;
+    border: 1px solid var(--color-warning);
+    color: #92400e;
+}
+
+/* Form filters */
+.filters {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+}
+
+.filters > * {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Utility classes */
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: var(--muted-color);
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.mt-2 {
+    margin-top: 2rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .filters {
+        flex-direction: column;
+    }
+
+    .filters > * {
+        width: 100%;
+    }
+
+    .caregiver-card .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

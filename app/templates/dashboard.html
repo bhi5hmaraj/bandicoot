@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Bandicoot RMAB{% endblock %}
+
+{% block content %}
+<div id="app">
+    <h1>📊 Dashboard</h1>
+
+    <!-- Alert messages -->
+    <div v-if="error" class="alert alert-error">
+        <span v-text="error"></span>
+        <button @click="error = null">✕</button>
+    </div>
+
+    <div v-if="success" class="alert alert-success">
+        <span v-text="success"></span>
+        <button @click="success = null">✕</button>
+    </div>
+
+    <!-- Model status warning -->
+    {% if not model_loaded %}
+    <div class="alert alert-warning">
+        ⚠️ Model not trained yet. Please go to <a href="/model">Model Info</a> to train the model first.
+    </div>
+    {% endif %}
+
+    <!-- Quick Stats -->
+    <section>
+        <h2>Quick Stats</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="value">
+                    <span v-if="healthStatus.total_caregivers" v-text="healthStatus.total_caregivers"></span>
+                    <span v-else>N/A</span>
+                </span>
+                <span class="label">Active Caregivers</span>
+            </div>
+            <div class="stat-card">
+                <span class="value" v-text="recommendations.length"></span>
+                <span class="label">Current Recommendations</span>
+            </div>
+            <div class="stat-card">
+                <span class="value">
+                    <span v-if="healthStatus.model_loaded">✓</span>
+                    <span v-else>✗</span>
+                </span>
+                <span class="label">Model Status</span>
+            </div>
+            <div class="stat-card">
+                <span class="value">
+                    <span v-if="healthStatus.version" v-text="healthStatus.version"></span>
+                    <span v-else>v1.0.0</span>
+                </span>
+                <span class="label">Version</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Generate Recommendations -->
+    <section>
+        <h2>🎯 Generate Recommendations</h2>
+
+        <form @submit.prevent="generateRecommendations">
+            <div class="filters">
+                <div>
+                    <label for="budget">
+                        Budget (number of caregivers to recommend)
+                        <input
+                            type="number"
+                            id="budget"
+                            v-model.number="budget"
+                            min="1"
+                            max="1000"
+                            required
+                            :disabled="loading || !healthStatus.model_loaded"
+                        >
+                    </label>
+                </div>
+                <div>
+                    <label for="actions">
+                        <br>
+                        <button
+                            type="submit"
+                            :disabled="loading || !healthStatus.model_loaded"
+                        >
+                            <span v-if="loading" class="loading-spinner"></span>
+                            <span v-if="loading">Generating...</span>
+                            <span v-else>Generate</span>
+                        </button>
+                    </label>
+                </div>
+                <div>
+                    <label for="export">
+                        <br>
+                        <button
+                            type="button"
+                            @click="exportRecommendations"
+                            :disabled="recommendations.length === 0"
+                            class="secondary"
+                        >
+                            Export CSV
+                        </button>
+                    </label>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- Recommendations List -->
+    <section v-if="recommendations.length > 0">
+        <h2>Recommendations (<span v-text="recommendations.length"></span>)</h2>
+
+        <div v-for="rec in recommendations" :key="rec.caregiver_id" class="caregiver-card">
+            <div class="header">
+                <div>
+                    <span class="caregiver-id" v-text="rec.caregiver_id"></span>
+                    <span
+                        class="state"
+                        :class="rec.current_state === 'Responsive' ? 'responsive' : 'unresponsive'"
+                        v-text="rec.current_state"
+                    >
+                    </span>
+                    <span class="text-muted">Cluster <span v-text="rec.cluster_id"></span></span>
+                </div>
+                <div>
+                    <span
+                        class="priority-score"
+                        :class="rec.priority_score > 0.5 ? 'high' : ''"
+                        v-text="rec.priority_score.toFixed(4)"
+                    >
+                    </span>
+                </div>
+            </div>
+            <div v-if="rec.reason" class="reason" v-text="rec.reason">
+            </div>
+        </div>
+
+        <p class="text-muted text-center">
+            <small>Showing <span v-text="recommendations.length"></span> recommendations sorted by priority (Whittle index)</small>
+        </p>
+    </section>
+
+    <section v-else-if="!loading && healthStatus.model_loaded">
+        <p class="text-muted text-center">
+            No recommendations generated yet. Use the form above to generate recommendations.
+        </p>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            budget: 50,
+            recommendations: [],
+            healthStatus: {
+                model_loaded: {{ 'true' if model_loaded else 'false' }},
+                version: '{{ version }}',
+                total_caregivers: null
+            },
+            loading: false,
+            error: null,
+            success: null
+        }
+    },
+    mounted() {
+        // Load health status on mount
+        this.loadHealthStatus();
+    },
+    methods: {
+        async loadHealthStatus() {
+            try {
+                const response = await fetch('/api/v1/health');
+                const data = await response.json();
+                this.healthStatus = {
+                    model_loaded: data.model_loaded,
+                    version: data.version,
+                    total_caregivers: data.total_caregivers || null
+                };
+            } catch (e) {
+                console.warn('Could not load health status:', e);
+            }
+        },
+
+        async generateRecommendations() {
+            if (!this.healthStatus.model_loaded) {
+                this.error = 'Model not trained. Please train the model first.';
+                return;
+            }
+
+            this.loading = true;
+            this.error = null;
+            this.success = null;
+
+            try {
+                const response = await fetch('/api/v1/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ budget: this.budget })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `HTTP error ${response.status}`);
+                }
+
+                const data = await response.json();
+                this.recommendations = data.recommendations;
+                this.success = `Generated ${this.recommendations.length} recommendations successfully!`;
+
+                // Scroll to recommendations
+                window.scrollTo({ top: 300, behavior: 'smooth' });
+            } catch (e) {
+                console.error('Generate recommendations error:', e);
+                this.error = e.message || 'Failed to generate recommendations. Please try again.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        exportRecommendations() {
+            if (this.recommendations.length === 0) {
+                alert('No recommendations to export');
+                return;
+            }
+
+            // Use utility function from utils.js
+            const timestamp = new Date().toISOString().split('T')[0];
+            exportToCSV(this.recommendations, `bandicoot_recommendations_${timestamp}.csv`);
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}

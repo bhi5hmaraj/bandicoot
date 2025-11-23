@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Bandicoot RMAB{% endblock %}
+
+{% block content %}
+<div id="app">
+    <h1>⚙️ Settings</h1>
+
+    <p>
+        <a href="/">← Back to Dashboard</a>
+    </p>
+
+    <!-- Model Parameters -->
+    <section>
+        <h2>Model Parameters</h2>
+
+        <p class="text-muted">
+            <small>These parameters control how the RMAB model learns and generates recommendations.</small>
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Number of Clusters</strong></td>
+                    <td>{{ config.N_CLUSTERS }}</td>
+                    <td>Number of caregiver behavior clusters</td>
+                </tr>
+                <tr>
+                    <td><strong>Discount Factor (γ)</strong></td>
+                    <td>{{ config.GAMMA }}</td>
+                    <td>Future reward discount (0-1, closer to 1 = more forward-looking)</td>
+                </tr>
+                <tr>
+                    <td><strong>Alpha (Dirichlet)</strong></td>
+                    <td>{{ config.ALPHA }}</td>
+                    <td>Prior strength for Bayesian estimation</td>
+                </tr>
+                <tr>
+                    <td><strong>Min Observations</strong></td>
+                    <td>{{ config.MIN_OBSERVATIONS }}</td>
+                    <td>Minimum observations required per cluster</td>
+                </tr>
+                <tr>
+                    <td><strong>Random State</strong></td>
+                    <td>{{ config.RANDOM_STATE }}</td>
+                    <td>Seed for reproducibility (null = random)</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- System Settings -->
+    <section>
+        <h2>System Settings</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Setting</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>API Title</strong></td>
+                    <td>{{ config.API_TITLE }}</td>
+                    <td>Service name</td>
+                </tr>
+                <tr>
+                    <td><strong>API Version</strong></td>
+                    <td>{{ config.API_VERSION }}</td>
+                    <td>Current version</td>
+                </tr>
+                <tr>
+                    <td><strong>Authentication</strong></td>
+                    <td>
+                        {% if config.REQUIRE_AUTH %}
+                        <span style="color: var(--color-success);">✓ Enabled</span>
+                        {% else %}
+                        <span style="color: var(--color-warning);">⚠️ Disabled</span>
+                        {% endif %}
+                    </td>
+                    <td>API key authentication requirement</td>
+                </tr>
+                <tr>
+                    <td><strong>Log Level</strong></td>
+                    <td>{{ config.LOG_LEVEL }}</td>
+                    <td>Logging verbosity</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Configuration Help -->
+    <section>
+        <h3>How to Update Settings</h3>
+
+        <p>
+            To change these settings, update your <code>.env</code> file and restart the server:
+        </p>
+
+        <pre><code># Example .env file
+N_CLUSTERS=20
+GAMMA=0.99
+ALPHA=1.0
+MIN_OBSERVATIONS=10
+REQUIRE_AUTH=false
+LOG_LEVEL=INFO</code></pre>
+
+        <p class="text-muted">
+            <small>
+                <strong>Note:</strong> Settings are loaded at startup. After changing the .env file,
+                you must restart the server for changes to take effect.
+            </small>
+        </p>
+    </section>
+
+    <!-- Advanced -->
+    <details>
+        <summary>Advanced Configuration</summary>
+
+        <h4>Model Tuning Guide</h4>
+
+        <dl>
+            <dt><strong>Number of Clusters (N_CLUSTERS)</strong></dt>
+            <dd>
+                Higher values create more fine-grained caregiver groups but may overfit on sparse data.
+                Lower values create broader groups but may miss important behavioral differences.
+                <strong>Recommended range:</strong> 10-30 for datasets with 1000+ caregivers.
+            </dd>
+
+            <dt><strong>Discount Factor (GAMMA)</strong></dt>
+            <dd>
+                Controls how much the model values future engagement vs. immediate results.
+                Values closer to 1.0 prioritize long-term retention.
+                <strong>Recommended range:</strong> 0.90-0.99
+            </dd>
+
+            <dt><strong>Alpha (Dirichlet Prior)</strong></dt>
+            <dd>
+                Controls how much weight to give to the prior vs. observed data.
+                Higher values make the model more conservative (trust the prior more).
+                <strong>Recommended range:</strong> 0.5-2.0
+            </dd>
+
+            <dt><strong>Min Observations</strong></dt>
+            <dd>
+                Minimum number of state transitions required to estimate cluster parameters.
+                Higher values require more data but give more reliable estimates.
+                <strong>Recommended range:</strong> 5-20
+            </dd>
+        </dl>
+    </details>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            // Settings are server-rendered, no client state needed for now
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}
