@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Research and experiments
+research/
+experiments/
+
+# Questions and planning
+questions/
+summary/
+
+# CI/CD
+.github/
+
+# Environment files (add via env vars instead)
+.env
+.env.*
+
+# Data files (mount as volumes instead)
+*.csv
+*.pkl
+*.pickle
+data/
+
+# macOS
+.DS_Store
