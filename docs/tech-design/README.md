@@ -12,8 +12,17 @@ Modular technical design for Bandicoot's MVP (6-week launch).
 | [03-api-design.md](03-api-design.md) | API Endpoints | ~350 | FastAPI specs, auth, rate limiting |
 | [04-deployment.md](04-deployment.md) | Infrastructure | ~350 | Cloud Run, cost optimization |
 | [05-integration.md](05-integration.md) | ETL & Pipelines | ~400 | Suvita integration, data flows |
+| [06-job-execution.md](06-job-execution.md) | Job Execution | ~300 | Long-running jobs, SOLID abstraction |
 
-**Total:** ~2100 lines across 6 modular docs
+**Total:** ~2400 lines across 7 modular docs
+
+### Job Execution (Modular)
+
+The job execution design is split into multiple guides:
+- **[06-job-execution.md](06-job-execution.md)** - Main design (alternatives, decision, architecture)
+- **[job-execution/](job-execution/)** - Implementation guides by cloud provider
+  - [gcp-cloudrun-jobs.md](job-execution/gcp-cloudrun-jobs.md) - GCP implementation
+  - [cloud-agnostic.md](job-execution/cloud-agnostic.md) - AWS, Azure, Kubernetes migration paths
 
 ---
 
@@ -52,6 +61,12 @@ Modular technical design for Bandicoot's MVP (6-week launch).
 - State update logic (Responsive/Unresponsive)
 - Recommendation output (API pull, CSV export, Pub/Sub)
 - Event-driven updates (optional)
+
+**How to run long jobs** → Read [06-job-execution.md](06-job-execution.md)
+- Comparison: Cloud Run Jobs, Cloud Tasks, Cloud Workflows
+- SOLID abstraction (JobExecutor interface)
+- Cloud-agnostic design (GCP, AWS, Azure, Kubernetes)
+- Implementation guides in [job-execution/](job-execution/)
 
 ---
 
