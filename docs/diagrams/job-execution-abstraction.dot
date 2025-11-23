@@ -1,0 +1,71 @@
+digraph JobExecutionAbstraction {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // Application Layer
+    subgraph cluster_app {
+        label="Application Code (Cloud-Agnostic)";
+        style=filled;
+        color=lightblue;
+
+        app [label="Training Pipeline\n(train_clusters.py)", shape=component];
+    }
+
+    // Abstraction Layer
+    subgraph cluster_abstraction {
+        label="SOLID Abstraction Layer";
+        style=filled;
+        color=lightyellow;
+
+        interface [label="JobExecutor\nInterface\n\n+ submit()\n+ get_status()\n+ cancel()\n+ wait()", shape=record];
+        factory [label="JobExecutorFactory\n\ncreate(backend: str)", shape=component];
+    }
+
+    // Implementation Layer
+    subgraph cluster_impl {
+        label="Backend Implementations";
+        style=filled;
+        color=lightgreen;
+
+        gcp [label="CloudRunJobsExecutor\n(GCP)", shape=component];
+        aws [label="AWSBatchExecutor\n(AWS)", shape=component];
+        azure [label="AzureBatchExecutor\n(Azure)", shape=component];
+        k8s [label="KubernetesJobExecutor\n(Multi-Cloud)", shape=component];
+        local [label="LocalJobExecutor\n(Testing)", shape=component];
+    }
+
+    // Cloud Services
+    subgraph cluster_cloud {
+        label="Cloud Provider Services";
+        style=filled;
+        color=lightcoral;
+
+        gcp_service [label="Cloud Run Jobs", shape=cylinder];
+        aws_service [label="AWS Batch", shape=cylinder];
+        azure_service [label="Azure Batch", shape=cylinder];
+        k8s_service [label="Kubernetes Cluster\n(GKE/EKS/AKS)", shape=cylinder];
+    }
+
+    // Flow
+    app -> factory [label="get executor"];
+    factory -> interface [label="returns"];
+    interface -> gcp [style=dashed];
+    interface -> aws [style=dashed];
+    interface -> azure [style=dashed];
+    interface -> k8s [style=dashed];
+    interface -> local [style=dashed];
+
+    gcp -> gcp_service;
+    aws -> aws_service;
+    azure -> azure_service;
+    k8s -> k8s_service;
+
+    // Config
+    config [label="Config:\nJOB_EXECUTOR_BACKEND\n='gcp_cloudrun'", shape=note, color=yellow, style=filled];
+    factory -> config [style=dotted, label="reads"];
+
+    // Benefits
+    benefits [label="✅ No code changes\n✅ Swap via env var\n✅ Easy testing\n✅ Multi-cloud ready", shape=note, color=green, style=filled];
+    app -> benefits [style=dotted];
+}

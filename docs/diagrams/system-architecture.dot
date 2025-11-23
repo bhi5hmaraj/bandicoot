@@ -1,0 +1,74 @@
+digraph SystemArchitecture {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // Color scheme
+    subgraph cluster_suvita {
+        label="Suvita Systems";
+        style=filled;
+        color=lightblue;
+
+        registry [label="Caregiver\nRegistry", shape=cylinder];
+        sms_logs [label="SMS Logs", shape=cylinder];
+        vaccinations [label="Vaccination\nRecords", shape=cylinder];
+    }
+
+    subgraph cluster_bandicoot {
+        label="Bandicoot RMAB Service";
+        style=filled;
+        color=lightyellow;
+
+        api [label="FastAPI\nService", shape=component];
+
+        subgraph cluster_jobs {
+            label="Batch Jobs";
+            style=dashed;
+
+            training [label="Weekly\nTraining", shape=note];
+            state_update [label="Nightly\nState Update", shape=note];
+        }
+
+        subgraph cluster_storage {
+            label="Storage Layer";
+            style=dashed;
+
+            postgres [label="PostgreSQL\n(Clusters, States)", shape=cylinder];
+            redis [label="Redis\n(Indices Cache)", shape=cylinder];
+        }
+    }
+
+    subgraph cluster_output {
+        label="Recommendations";
+        style=filled;
+        color=lightgreen;
+
+        sms_system [label="SMS Scheduler"];
+        health_workers [label="Health Worker\nDashboard"];
+    }
+
+    // Data flows
+    registry -> training [label="Demographics"];
+    sms_logs -> training [label="Engagement\nHistory"];
+    vaccinations -> training [label="Outcomes"];
+
+    training -> postgres [label="Store Clusters\n& MDP Params"];
+    training -> redis [label="Cache Whittle\nIndices"];
+
+    sms_logs -> state_update [label="Recent\nActivity"];
+    state_update -> postgres [label="Update States"];
+    state_update -> redis [label="Sync Cache"];
+
+    api -> postgres [label="Query\nStates"];
+    api -> redis [label="Lookup\nIndices"];
+
+    api -> sms_system [label="Top-K\nPriorities"];
+    api -> health_workers [label="Recommendations\n+ Context"];
+
+    sms_system -> sms_logs [label="Track\nDelivery"];
+
+    // Styling
+    {rank=same; registry; sms_logs; vaccinations;}
+    {rank=same; api; training; state_update;}
+    {rank=same; sms_system; health_workers;}
+}

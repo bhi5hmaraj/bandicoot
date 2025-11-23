@@ -1,0 +1,100 @@
+digraph ProblemModeling {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // Title
+    label="How We Model the Immunization Problem";
+    labelloc="t";
+    fontsize=18;
+
+    // Real World Problem
+    subgraph cluster_real_world {
+        label="Real-World Problem";
+        style=filled;
+        color="#ffe6e6";
+        fontsize=14;
+
+        rw_caregivers [label="200,000 Caregivers\n(Different behaviors)", shape=ellipse];
+        rw_states [label="Engagement States:\n• Some respond to SMS\n• Some ignore\n• Some lapse over time", shape=note];
+        rw_actions [label="Limited Actions:\n• Send SMS reminder\n• Make phone call\n• Do nothing (budget)", shape=note];
+        rw_outcomes [label="Outcomes:\n• Child vaccinated ✓\n• Child missed dose ✗\n• Unknown (pending)", shape=note];
+        rw_constraint [label="Constraint:\nOnly 1,000 contacts/day", shape=note, color=red, style=filled];
+    }
+
+    // Mathematical Abstraction
+    subgraph cluster_abstraction {
+        label="Mathematical Abstraction (RMAB)";
+        style=filled;
+        color="#e6f7ff";
+        fontsize=14;
+
+        abs_arms [label="K = 200,000 Arms\n(Each caregiver = 1 arm)", shape=component];
+        abs_states [label="States S:\n• Responsive (R)\n• Unresponsive (U)", shape=component];
+        abs_actions [label="Actions A:\n• Active (contact)\n• Passive (no contact)", shape=component];
+        abs_transitions [label="Transitions P(s'|s,a):\nHow state changes\nbased on action", shape=component];
+        abs_rewards [label="Reward R(s,a):\nP(vaccination | state, action)", shape=component];
+        abs_budget [label="Budget B = 1,000:\nMax active arms per day", shape=component, color=red, style="filled,rounded"];
+    }
+
+    // Bandicoot Solution
+    subgraph cluster_solution {
+        label="Bandicoot Solution Approach";
+        style=filled;
+        color="#e6ffe6";
+        fontsize=14;
+
+        sol_cluster [label="Clustering:\nGroup 200K → 20 clusters\n(similar behavior)", shape=component];
+        sol_learn [label="Learn Parameters:\nEstimate P(s'|s,a), R(s,a)\nper cluster", shape=component];
+        sol_whittle [label="Whittle Index:\nCompute priority score\nW(s) per (cluster, state)", shape=component];
+        sol_optimize [label="Optimization:\nRank all caregivers\nSelect top-1000", shape=component];
+        sol_adaptive [label="Adaptive Learning:\nUpdate based on\nobserved outcomes", shape=component];
+    }
+
+    // Decision Output
+    subgraph cluster_output {
+        label="Daily Decisions";
+        style=filled;
+        color="#fff9e6";
+        fontsize=14;
+
+        out_priorities [label="Priority List:\n1. CG-45678 (W=0.91)\n2. CG-12345 (W=0.87)\n...\n1000. CG-99234 (W=0.42)", shape=note];
+        out_actions [label="Recommended Actions:\n• Contact: 1,000 caregivers\n• No contact: 199,000", shape=note];
+        out_impact [label="Expected Impact:\n↑ Vaccination rate\n↓ Wasted effort", shape=note, color=green, style=filled];
+    }
+
+    // Flows: Real World -> Abstraction
+    rw_caregivers -> abs_arms [label="model as"];
+    rw_states -> abs_states [label="simplify to"];
+    rw_actions -> abs_actions [label="map to"];
+    rw_outcomes -> abs_rewards [label="define as"];
+    rw_constraint -> abs_budget [label="formalize as"];
+
+    // Flows: Abstraction -> Solution
+    abs_arms -> sol_cluster;
+    abs_states -> sol_learn;
+    abs_actions -> sol_learn;
+    abs_transitions -> sol_learn;
+    abs_rewards -> sol_learn;
+
+    sol_cluster -> sol_whittle;
+    sol_learn -> sol_whittle;
+    sol_whittle -> sol_optimize;
+    abs_budget -> sol_optimize;
+
+    sol_optimize -> sol_adaptive;
+
+    // Flows: Solution -> Output
+    sol_optimize -> out_priorities;
+    out_priorities -> out_actions;
+    out_actions -> out_impact;
+
+    // Feedback loop
+    out_impact -> sol_adaptive [label="observe", style=dashed, color=green];
+    sol_adaptive -> sol_learn [label="retrain weekly", style=dashed, color=green];
+
+    // Key Insight
+    insight [label="Key Insight:\nRMAB models the problem\nas a sequential decision\nprocess under uncertainty", shape=note, color=yellow, style=filled];
+    abs_arms -> insight [style=dotted];
+    abs_transitions -> insight [style=dotted];
+}

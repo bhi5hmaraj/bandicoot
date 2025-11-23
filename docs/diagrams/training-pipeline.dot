@@ -1,0 +1,74 @@
+digraph TrainingPipeline {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    start [label="Start: Sunday 02:00", shape=ellipse, color=green, style=filled];
+
+    // Extract
+    subgraph cluster_extract {
+        label="1. Extract (10 min)";
+        style=filled;
+        color=lightblue;
+
+        extract [label="Pull 6 months\nhistorical data"];
+        format [label="Transform to\n(state, action, reward)"];
+    }
+
+    // Cluster
+    subgraph cluster_cluster {
+        label="2. Cluster (15 min)";
+        style=filled;
+        color=lightyellow;
+
+        features [label="Compute passive\ntransition features"];
+        kmeans [label="K-means clustering\n(k=15-25)"];
+        assign [label="Assign 200K caregivers\nto ~20 clusters"];
+    }
+
+    // Learn
+    subgraph cluster_learn {
+        label="3. Learn MDP (10 min)";
+        style=filled;
+        color=lightgreen;
+
+        bayesian [label="Bayesian parameter\nlearning per cluster"];
+        validate [label="Validate transition\nprobabilities"];
+    }
+
+    // Whittle
+    subgraph cluster_whittle {
+        label="4. Whittle Indices (7 min)";
+        style=filled;
+        color=lightcoral;
+
+        compute [label="Binary search +\nvalue iteration"];
+        cache [label="Store in Redis\nfor O(1) lookup"];
+    }
+
+    // FO Mapper
+    subgraph cluster_fo {
+        label="5. FO Mapper (5 min)";
+        style=filled;
+        color=lavender;
+
+        train_rf [label="Train RandomForest\ndemographics → cluster"];
+        save_model [label="Save to Cloud Storage"];
+    }
+
+    end [label="Complete: ~30 min", shape=ellipse, color=green, style=filled];
+
+    // Flow
+    start -> extract;
+    extract -> format;
+    format -> features;
+    features -> kmeans;
+    kmeans -> assign;
+    assign -> bayesian;
+    bayesian -> validate;
+    validate -> compute;
+    compute -> cache;
+    cache -> train_rf;
+    train_rf -> save_model;
+    save_model -> end;
+}

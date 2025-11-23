@@ -1,0 +1,121 @@
+digraph StakeholderWorkflows {
+    rankdir=LR;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // Title
+    label="Stakeholder Workflows in Immunization Programs";
+    labelloc="t";
+    fontsize=18;
+
+    // Stakeholders (Actors)
+    subgraph cluster_actors {
+        label="Actors";
+        style=filled;
+        color=lightblue;
+
+        caregiver [label="👤 Caregiver\n(Mother/Family)", shape=ellipse, color=lightgreen, style=filled];
+        health_worker [label="👥 Health Worker\n(ASHA/ANM)", shape=ellipse, color=lightcoral, style=filled];
+        ngo_manager [label="📊 NGO Program\nManager", shape=ellipse, color=lightyellow, style=filled];
+        data_scientist [label="🔬 Data Scientist\n(Bandicoot Ops)", shape=ellipse, color=lavender, style=filled];
+    }
+
+    // Caregiver Journey
+    subgraph cluster_caregiver_journey {
+        label="Caregiver Journey";
+        style=filled;
+        color="#e6f7ff";
+
+        c1 [label="Enrolls in\nProgram"];
+        c2 [label="Receives\nSMS Reminders"];
+        c3 [label="May/May Not\nEngage"];
+        c4 [label="Visits Clinic\n(or Misses)"];
+        c5 [label="Child Vaccinated\n(or Dropout)"];
+    }
+
+    // Health Worker Workflow
+    subgraph cluster_health_worker {
+        label="Health Worker Daily Workflow";
+        style=filled;
+        color="#fff7e6";
+
+        hw1 [label="Receives Daily\nPriority List"];
+        hw2 [label="Reviews\nCaregiver Context"];
+        hw3 [label="Contacts\nHigh-Priority\nCaregivers"];
+        hw4 [label="Provides\nCounseling/\nReminders"];
+        hw5 [label="Records\nOutcome"];
+    }
+
+    // NGO Manager Workflow
+    subgraph cluster_ngo_manager {
+        label="NGO Manager Weekly Workflow";
+        style=filled;
+        color="#f0ffe6";
+
+        nm1 [label="Reviews Dashboard:\n• Vaccination rates\n• Engagement metrics"];
+        nm2 [label="Identifies\nAt-Risk Districts"];
+        nm3 [label="Allocates Resources:\n• More workers\n• SMS credits"];
+        nm4 [label="Tracks A/B Test\nResults"];
+    }
+
+    // Data Scientist Workflow
+    subgraph cluster_data_scientist {
+        label="Data Scientist Weekly Workflow";
+        style=filled;
+        color="#ffe6f7";
+
+        ds1 [label="Monitors System:\n• API latency\n• Job success rate"];
+        ds2 [label="Reviews Model:\n• Cluster quality\n• Index distribution"];
+        ds3 [label="Tunes Parameters:\n• Adjust k (clusters)\n• Update features"];
+        ds4 [label="Triggers Retraining:\n• Weekly job\n• On-demand"];
+    }
+
+    // Bandicoot System (Central)
+    bandicoot [label="🤖 Bandicoot\nRMAB System", shape=component, color=yellow, style="filled,rounded", penwidth=3];
+
+    // Caregiver flow
+    caregiver -> c1;
+    c1 -> c2;
+    c2 -> c3;
+    c3 -> c4;
+    c4 -> c5;
+
+    // Health worker flow
+    health_worker -> hw1;
+    hw1 -> hw2;
+    hw2 -> hw3;
+    hw3 -> hw4;
+    hw4 -> hw5;
+
+    // NGO manager flow
+    ngo_manager -> nm1;
+    nm1 -> nm2;
+    nm2 -> nm3;
+    nm3 -> nm4;
+
+    // Data scientist flow
+    data_scientist -> ds1;
+    ds1 -> ds2;
+    ds2 -> ds3;
+    ds3 -> ds4;
+
+    // Interactions with Bandicoot
+    c1 -> bandicoot [label="enrollment data", color=blue];
+    c3 -> bandicoot [label="SMS engagement", color=blue];
+    c5 -> bandicoot [label="vaccination outcome", color=blue];
+
+    bandicoot -> hw1 [label="priority list API", color=green, penwidth=2];
+    hw5 -> bandicoot [label="outcome feedback", color=blue];
+
+    bandicoot -> nm1 [label="dashboard metrics", color=green];
+    nm3 -> bandicoot [label="configuration changes", color=orange];
+
+    ds2 -> bandicoot [label="model diagnostics", color=purple];
+    ds4 -> bandicoot [label="trigger training", color=purple];
+
+    // Feedback loop
+    feedback_loop [label="Continuous Learning\nLoop", shape=note, color=lightgreen, style=filled];
+    c5 -> feedback_loop [style=dashed];
+    hw5 -> feedback_loop [style=dashed];
+    feedback_loop -> bandicoot [label="improve predictions", color=green, penwidth=2];
+}

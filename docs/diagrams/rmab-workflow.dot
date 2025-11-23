@@ -1,0 +1,52 @@
+digraph RMABWorkflow {
+    rankdir=LR;
+    node [shape=box, style=rounded, fontname="Arial"];
+    edge [fontname="Arial"];
+
+    // Problem
+    subgraph cluster_problem {
+        label="The Problem";
+        style=filled;
+        color="#ffcccc";
+
+        caregivers [label="200,000\nCaregivers", shape=ellipse];
+        budget [label="Limited Budget\n(1,000 contacts/day)", shape=ellipse];
+        dropout [label="30% Dropout\nRate", shape=ellipse, color=red, style="filled,rounded"];
+    }
+
+    // RMAB Solution
+    subgraph cluster_rmab {
+        label="RMAB Solution";
+        style=filled;
+        color="#ccffcc";
+
+        cluster [label="1. Cluster\nby Behavior\n(~20 groups)"];
+        learn [label="2. Learn MDP\nParameters\n(transitions, rewards)"];
+        whittle [label="3. Compute\nWhittle Indices\n(priority scores)"];
+        recommend [label="4. Recommend\nTop-K\n(highest impact)"];
+    }
+
+    // Impact
+    subgraph cluster_impact {
+        label="Expected Impact";
+        style=filled;
+        color="#ccccff";
+
+        efficiency [label="+50%\nHealth Worker\nEfficiency", shape=ellipse, color=green, style="filled,rounded"];
+        completion [label="80%\nVaccination\nCompletion", shape=ellipse, color=green, style="filled,rounded"];
+        cost [label="-30%\nCost per\nVaccination", shape=ellipse, color=green, style="filled,rounded"];
+    }
+
+    // Flow
+    caregivers -> cluster;
+    budget -> cluster;
+    dropout -> cluster;
+
+    cluster -> learn;
+    learn -> whittle;
+    whittle -> recommend;
+
+    recommend -> efficiency;
+    recommend -> completion;
+    recommend -> cost;
+}
