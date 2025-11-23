@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Error - Bandicoot RMAB{% endblock %}
+
+{% block content %}
+<div class="text-center mt-2">
+    <h1>⚠️ Error</h1>
+
+    <div class="alert alert-error">
+        {{ error_message|default('An unexpected error occurred. Please try again.') }}
+    </div>
+
+    <p>
+        <a href="/" role="button">← Back to Dashboard</a>
+    </p>
+
+    <hr>
+
+    <p class="text-muted">
+        <small>
+            If this problem persists, please check the API logs or contact support.
+        </small>
+    </p>
+</div>
+{% endblock %}

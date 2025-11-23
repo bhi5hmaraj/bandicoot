@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Model Info - Bandicoot RMAB{% endblock %}
+
+{% block content %}
+<div id="app">
+    <h1>📚 Model Information</h1>
+
+    <p>
+        <a href="/">← Back to Dashboard</a>
+    </p>
+
+    <!-- Alert messages -->
+    <div v-if="error" class="alert alert-error">
+        {{ error }}
+        <button @click="error = null">✕</button>
+    </div>
+
+    <div v-if="success" class="alert alert-success">
+        {{ success }}
+        <button @click="success = null">✕</button>
+    </div>
+
+    <!-- Training Status -->
+    <section>
+        <h2>Training Status</h2>
+
+        {% if model_loaded %}
+        <div>
+            <p>✓ <strong>Model is trained and ready</strong></p>
+            {% if training_info %}
+            <ul>
+                <li>Caregivers: <strong>{{ training_info.n_caregivers }}</strong></li>
+                <li>Clusters: <strong>{{ training_info.n_clusters }}</strong></li>
+                <li>Last trained: <strong>{{ training_info.trained_at }}</strong></li>
+            </ul>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            ⚠️ Model not yet trained. Click "Train Model" below to get started.
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 1rem;">
+            <button
+                @click="trainModel"
+                :disabled="training"
+            >
+                <span v-if="training" class="loading-spinner"></span>
+                <span v-if="training">Training... (this may take 30-60 seconds)</span>
+                <span v-else>Train Model</span>
+            </button>
+
+            <button
+                v-if="modelLoaded"
+                @click="precomputeIndices"
+                :disabled="precomputing"
+                class="secondary"
+                style="margin-left: 1rem;"
+            >
+                <span v-if="precomputing" class="loading-spinner"></span>
+                <span v-if="precomputing">Precomputing...</span>
+                <span v-else>Precompute Indices</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- Cluster Summary -->
+    <section v-if="clusters.length > 0">
+        <h2>Cluster Summary</h2>
+
+        <p class="text-muted">
+            <small>Click column headers to sort</small>
+        </p>
+
+        <table class="cluster-table">
+            <thead>
+                <tr>
+                    <th @click="sortBy('cluster_id')">Cluster ID</th>
+                    <th @click="sortBy('n_caregivers')">Size</th>
+                    <th @click="sortBy('w_responsive')">W(Responsive)</th>
+                    <th @click="sortBy('w_unresponsive')">W(Unresponsive)</th>
+                    <th @click="sortBy('retention_R')">Retention</th>
+                    <th @click="sortBy('recovery_U')">Recovery</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="cluster in sortedClusters" :key="cluster.cluster_id">
+                    <td><span v-text="cluster.cluster_id"></span></td>
+                    <td><span v-text="cluster.n_caregivers"></span></td>
+                    <td><span v-text="cluster.w_responsive.toFixed(4)"></span></td>
+                    <td><span v-text="cluster.w_unresponsive.toFixed(4)"></span></td>
+                    <td><span v-text="(cluster.retention_R * 100).toFixed(1) + '%'"></span></td>
+                    <td><span v-text="(cluster.recovery_U * 100).toFixed(1) + '%'"></span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p class="text-muted">
+            <small>
+                <strong>W(·)</strong> = Whittle index for state (higher = higher priority) |
+                <strong>Retention</strong> = P(stay responsive) |
+                <strong>Recovery</strong> = P(become responsive)
+            </small>
+        </p>
+    </section>
+
+    <section v-else-if="modelLoaded">
+        <p class="text-muted">No cluster information available.</p>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            modelLoaded: {{ 'true' if model_loaded else 'false' }},
+            clusters: {% if clusters %}{{ clusters|tojson }}{% else %}[]{% endif %},
+            training: false,
+            precomputing: false,
+            error: null,
+            success: null,
+            sortKey: 'cluster_id',
+            sortAsc: true
+        }
+    },
+    computed: {
+        sortedClusters() {
+            const sorted = [...this.clusters].sort((a, b) => {
+                const aVal = a[this.sortKey];
+                const bVal = b[this.sortKey];
+
+                if (aVal < bVal) return this.sortAsc ? -1 : 1;
+                if (aVal > bVal) return this.sortAsc ? 1 : -1;
+                return 0;
+            });
+            return sorted;
+        }
+    },
+    methods: {
+        sortBy(key) {
+            if (this.sortKey === key) {
+                this.sortAsc = !this.sortAsc;
+            } else {
+                this.sortKey = key;
+                this.sortAsc = true;
+            }
+        },
+
+        async trainModel() {
+            if (!confirm('This will retrain the model with default parameters. Continue?')) {
+                return;
+            }
+
+            this.training = true;
+            this.error = null;
+            this.success = null;
+
+            try {
+                const response = await fetch('/api/v1/train_clusters', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        n_clusters: 20,
+                        min_observations: 10
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `HTTP error ${response.status}`);
+                }
+
+                const data = await response.json();
+                this.clusters = data.clusters || [];
+                this.modelLoaded = true;
+                this.success = `Training complete! ${data.n_clusters} clusters created from ${data.n_caregivers} caregivers.`;
+
+                // Reload page to update header
+                setTimeout(() => location.reload(), 2000);
+            } catch (e) {
+                console.error('Training error:', e);
+                this.error = e.message || 'Failed to train model. Please try again.';
+            } finally {
+                this.training = false;
+            }
+        },
+
+        async precomputeIndices() {
+            this.precomputing = true;
+            this.error = null;
+            this.success = null;
+
+            try {
+                const response = await fetch('/api/v1/precompute_indices', {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `HTTP error ${response.status}`);
+                }
+
+                const data = await response.json();
+                this.success = `Precomputed ${data.indices_computed} indices for ${data.n_clusters} clusters.`;
+            } catch (e) {
+                console.error('Precompute error:', e);
+                this.error = e.message || 'Failed to precompute indices. Please try again.';
+            } finally {
+                this.precomputing = false;
+            }
+        }
+    }
+}).mount('#app');
+</script>
+{% endblock %}
