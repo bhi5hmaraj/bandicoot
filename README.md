@@ -50,6 +50,7 @@ See [RMAB fundamentals](docs/rmab-fundamentals.md) for the model and [architectu
 Bandicoot has no impact data yet. The method comes from SAHELI, which runs in mMitra, ARMMAN's voice-message program for pregnant women and new mothers:
 
 - **Field study** ([Mate et al., AAAI 2022](https://arxiv.org/abs/2109.08075)): 23,003 beneficiaries over 7 weeks. RMAB-selected service calls reduced engagement drops by ~30% and beat both comparison groups (round-robin calls and the current standard of care). Engagement means listening to the automated health voice messages.
+- **Second field trial** ([Verma et al., AAMAS 2023](https://www.southampton.ac.uk/~eg/AAMAS2023/pdfs/p1312.pdf)): 9,000 beneficiaries over 6 weeks. The same two-stage method (cluster, then Whittle index) gave a 10% reduction in engagement drops that was not significant (p = 0.48). A decision-focused learning variant gave a 31% reduction (p = 0.024).
 - **Deployment** ([Verma et al., AAAI 2023](https://ojs.aaai.org/index.php/AAAI/article/view/26849)): SAHELI reached ~100K beneficiaries.
 
 These results measure engagement with voice messages. Each new program must measure its own outcomes with an A/B test.
@@ -94,6 +95,12 @@ The code supports a 2-state model with one contact type. Other programs need the
 - **Multiple action types.** For example SMS, call, and visit, each with a different cost.
 - **Fairness constraints.** Give every lapsed participant a minimum contact, and let the RMAB allocate the remaining budget.
 
+## Future research
+
+The two-stage method that Bandicoot copies reduced engagement drops in its first field trial, but a replication found no significant effect ([Verma et al., AAMAS 2023](https://www.southampton.ac.uk/~eg/AAMAS2023/pdfs/p1312.pdf)). Stronger contacts, program redesign, and a simple rule that sends a human contact after a lapse have shown larger gains in other trials. So the next step is to make each deployment a valid experiment and to compare the Whittle ranking with simple baselines.
+
+[Future research](docs/future-research.md) reviews four levers (targeting, changing the constraint, adaptive design, program design) and ranks a research agenda.
+
 ## Documentation
 
 | Document | Contents |
@@ -104,6 +111,7 @@ The code supports a 2-state model with one contact type. Other programs need the
 | [Open questions](docs/open-questions.md) | Open decisions on modeling, evaluation, and engineering |
 | [SAHELI analysis](docs/saheli-analysis.md) | How SAHELI's open-source code works and how Bandicoot differs |
 | [Related work](docs/related-work.md) | Papers and libraries |
+| [Future research](docs/future-research.md) | Survey of new methods and a research agenda |
 | [Experiments](experiments/INSIGHTS.md) | Solver validation results |
 | [Diagrams](docs/diagrams/README.md) | Graphviz sources and style rules |
 
