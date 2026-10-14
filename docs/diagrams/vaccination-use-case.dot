@@ -1,0 +1,56 @@
+// Reference use case: childhood vaccination reminders (design only, not deployed).
+// Render: dot -Tsvg vaccination-use-case.dot -o vaccination-use-case.svg
+digraph VaccinationUseCase {
+    graph [rankdir=LR, compound=true, newrank=true, bgcolor="#ffffff", pad="0.3",
+           nodesep="0.3", ranksep="0.5", labelloc=t, labeljust=l,
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937"];
+    node  [shape=box, style="rounded,filled", penwidth=1.2, margin="0.16,0.07",
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937",
+           fillcolor="#ffffff", color="#94a3b8"];
+    edge  [color="#64748b", penwidth=1.1, arrowsize=0.7,
+           fontname="Helvetica,Arial,sans-serif", fontsize=9, fontcolor="#475569"];
+
+    caregiver [fillcolor="#ede9fe", color="#7c3aed",
+               label=<<b>Caregiver</b><br/><font point-size="9" color="#475569">gets SMS reminders,<br/>takes the child to the clinic</font>>];
+
+    subgraph cluster_data {
+        label=<<b>Program data</b>>;
+        style="rounded,filled"; fillcolor="#eff6ff"; color="#bfdbfe";
+        node [shape=cylinder, style=filled, fillcolor="#dbeafe", color="#2563eb"];
+        registry [label=<<b>Registry</b><br/><font point-size="9" color="#475569">enrollment, district</font>>];
+        sms      [label=<<b>SMS logs</b><br/><font point-size="9" color="#475569">delivery, response</font>>];
+        records  [label=<<b>Vaccination records</b><br/><font point-size="9" color="#475569">doses given</font>>];
+    }
+
+    subgraph cluster_bandicoot {
+        label=<<b>Bandicoot</b>  <font point-size="9" color="#475569">design, not deployed</font>>;
+        style="rounded,filled,dashed"; fillcolor="#f0fdfa"; color="#5eead4";
+        node [fillcolor="#ccfbf1", color="#0f766e", style="rounded,filled,dashed"];
+        train [label=<<b>Weekly training</b><br/><font point-size="9" color="#475569">state: SMS engagement<br/>in the last 7 days</font>>];
+        rank  [label=<<b>Ranked list each cycle</b><br/><font point-size="9" color="#475569">budget = follow-ups per cycle</font>>];
+    }
+
+    subgraph cluster_outreach {
+        label=<<b>Outreach and evaluation</b>>;
+        style="rounded,filled"; fillcolor="#fffbeb"; color="#fde68a";
+        node [fillcolor="#fef3c7", color="#b45309"];
+        ambassador [label=<<b>Ambassador follow-up</b><br/><font point-size="9" color="#475569">community volunteers call or<br/>visit the top-K caregivers</font>>];
+        abtest     [label=<<b>A/B test</b><br/><font point-size="9" color="#475569">ranked list vs. current method;<br/>metric: doses on time</font>>];
+    }
+
+    problem [shape=note, style=filled, fillcolor="#ffe4e6", color="#be123c",
+             label=<<b>Why it matters</b><br/><font point-size="9" color="#475569">~67 million children missed one or more<br/>routine vaccines in 2019 to 2021<br/>(UNICEF, State of the World's Children 2023)</font>>];
+
+    caregiver -> registry [label="enrolls"];
+    caregiver -> sms [label="responds"];
+    caregiver -> records [label="clinic visit"];
+    sms -> train [lhead=cluster_bandicoot];
+    train -> rank -> ambassador;
+    ambassador -> abtest;
+    {rank=same; ambassador; abtest}
+    ambassador:s -> caregiver:s [style=dashed, constraint=false, label="follow-up"];
+    {rank=same; caregiver; problem}
+    problem -> caregiver [style=invis];
+
+    label=<<font point-size="15"><b>Reference use case: vaccination reminders</b></font><br align="left"/><font point-size="10" color="#64748b">Based on Suvita's program design (SMS reminders and community ambassadors). Bandicoot is not deployed there.</font><br align="left"/>>;
+}

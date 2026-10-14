@@ -1,9 +1,9 @@
 """
-Bandicoot: RMAB-based vaccination adherence optimization.
+Bandicoot: restless bandit (RMAB) prioritization for outreach programs.
 
-This library implements Restless Multi-Armed Bandit (RMAB) algorithms for
-optimizing vaccination adherence campaigns. Based on SAHELI (ARMMAN + Google
-Research), which reduced engagement drops by ~30% in a field study.
+This library ranks program participants by the value of a contact under a
+fixed contact budget. It uses the Whittle index method of SAHELI (ARMMAN +
+Google Research), which reduced engagement drops by ~30% in a field study.
 """
 
 __version__ = "0.1.0"

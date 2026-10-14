@@ -1,74 +1,72 @@
+// System architecture: what is built and what is planned.
+// Render: dot -Tsvg system-architecture.dot -o system-architecture.svg
 digraph SystemArchitecture {
-    rankdir=TB;
-    node [shape=box, style=rounded, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=TB, compound=true, newrank=true, bgcolor="#ffffff", pad="0.3",
+           nodesep="0.35", ranksep="0.55", labelloc=t, labeljust=l,
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937"];
+    node  [shape=box, style="rounded,filled", penwidth=1.2, margin="0.16,0.07",
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937",
+           fillcolor="#ffffff", color="#94a3b8"];
+    edge  [color="#64748b", penwidth=1.1, arrowsize=0.7,
+           fontname="Helvetica,Arial,sans-serif", fontsize=9, fontcolor="#475569"];
 
-    // Color scheme
-    subgraph cluster_suvita {
-        label="Suvita Systems";
-        style=filled;
-        color=lightblue;
-
-        registry [label="Caregiver\nRegistry", shape=cylinder];
-        sms_logs [label="SMS Logs", shape=cylinder];
-        vaccinations [label="Vaccination\nRecords", shape=cylinder];
+    subgraph cluster_program {
+        label=<<b>Program systems</b>  <font point-size="9" color="#475569">owned by the partner program</font>>;
+        style="rounded,filled"; fillcolor="#eff6ff"; color="#bfdbfe";
+        node [shape=cylinder, style=filled, fillcolor="#dbeafe", color="#2563eb"];
+        logs     [label=<<b>Engagement logs</b><br/><font point-size="9" color="#475569">contacts and responses</font>>];
+        registry [label=<<b>Participant registry</b><br/><font point-size="9" color="#475569">enrollment features</font>>];
+        outcomes [label=<<b>Outcome records</b><br/><font point-size="9" color="#475569">program results</font>>];
     }
 
     subgraph cluster_bandicoot {
-        label="Bandicoot RMAB Service";
-        style=filled;
-        color=lightyellow;
-
-        api [label="FastAPI\nService", shape=component];
+        label=<<b>Bandicoot</b>>;
+        style="rounded,filled"; fillcolor="#f0fdfa"; color="#99f6e4";
 
         subgraph cluster_jobs {
-            label="Batch Jobs";
-            style=dashed;
+            label=<<b>Batch jobs</b>  <font point-size="9" color="#475569">planned</font>>;
+            style="rounded,dashed"; color="#5eead4";
+            node [fillcolor="#ccfbf1", color="#0f766e", style="rounded,filled,dashed"];
+            nightly  [label=<<b>Nightly state update</b><br/><font point-size="9" color="#475569">current state per participant</font>>];
+            training [label=<<b>Weekly training</b><br/><font point-size="9" color="#475569">runs bandicoot.core:<br/>cluster, learn, score</font>>];
+        }
 
-            training [label="Weekly\nTraining", shape=note];
-            state_update [label="Nightly\nState Update", shape=note];
+        subgraph cluster_built {
+            label=<<b>Built</b>>;
+            style="rounded"; color="#5eead4";
+            node [fillcolor="#99f6e4", color="#0f766e", penwidth=1.6];
+            service [label=<<b>FastAPI service</b><br/><font point-size="9" color="#475569">/api/v1 endpoints, web UI,<br/>in-memory model</font>>];
+            library [label=<<b>bandicoot.core</b><br/><font point-size="9" color="#475569">clustering, MDP learning,<br/>Whittle solver, recommender</font>>];
         }
 
         subgraph cluster_storage {
-            label="Storage Layer";
-            style=dashed;
-
-            postgres [label="PostgreSQL\n(Clusters, States)", shape=cylinder];
-            redis [label="Redis\n(Indices Cache)", shape=cylinder];
+            label=<<b>Storage</b>  <font point-size="9" color="#475569">planned</font>>;
+            style="rounded,dashed"; color="#cbd5e1";
+            node [shape=cylinder, style="filled,dashed", fillcolor="#f1f5f9", color="#64748b"];
+            postgres [label=<<b>PostgreSQL</b><br/><font point-size="9" color="#475569">clusters, states, logs</font>>];
+            redis    [label=<<b>Redis</b><br/><font point-size="9" color="#475569">index cache</font>>];
         }
     }
 
-    subgraph cluster_output {
-        label="Recommendations";
-        style=filled;
-        color=lightgreen;
-
-        sms_system [label="SMS Scheduler"];
-        health_workers [label="Health Worker\nDashboard"];
+    subgraph cluster_outreach {
+        label=<<b>Outreach</b>  <font point-size="9" color="#475569">owned by the partner program</font>>;
+        style="rounded,filled"; fillcolor="#fffbeb"; color="#fde68a";
+        node [fillcolor="#fef3c7", color="#b45309"];
+        staff     [label=<<b>Staff contact list</b><br/><font point-size="9" color="#475569">ranked participants</font>>];
+        scheduler [label=<<b>Contact scheduler</b><br/><font point-size="9" color="#475569">SMS and calls; responses<br/>go to the engagement logs</font>>];
     }
 
-    // Data flows
-    registry -> training [label="Demographics"];
-    sms_logs -> training [label="Engagement\nHistory"];
-    vaccinations -> training [label="Outcomes"];
+    logs -> nightly [label="recent activity"];
+    registry -> training [ltail=cluster_program, label="history"];
+    nightly -> postgres [label="states"];
+    training -> postgres [label="clusters, parameters"];
+    training -> redis [label="indices"];
+    service -> library [label="uses"];
+    service -> redis [style=dashed, label="read"];
+    service -> staff [label="ranked list"];
+    service -> scheduler [label="top-K list"];
 
-    training -> postgres [label="Store Clusters\n& MDP Params"];
-    training -> redis [label="Cache Whittle\nIndices"];
+    {rank=same; nightly; training; service; library}
 
-    sms_logs -> state_update [label="Recent\nActivity"];
-    state_update -> postgres [label="Update States"];
-    state_update -> redis [label="Sync Cache"];
-
-    api -> postgres [label="Query\nStates"];
-    api -> redis [label="Lookup\nIndices"];
-
-    api -> sms_system [label="Top-K\nPriorities"];
-    api -> health_workers [label="Recommendations\n+ Context"];
-
-    sms_system -> sms_logs [label="Track\nDelivery"];
-
-    // Styling
-    {rank=same; registry; sms_logs; vaccinations;}
-    {rank=same; api; training; state_update;}
-    {rank=same; sms_system; health_workers;}
+    label=<<font point-size="15"><b>System architecture</b></font><br align="left"/><font point-size="10" color="#64748b">Solid border: built. Dashed border: planned. Blue and amber systems belong to the program that uses Bandicoot.</font><br align="left"/>>;
 }

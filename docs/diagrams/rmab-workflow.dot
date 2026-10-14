@@ -1,52 +1,45 @@
+// How Bandicoot works: from a contact budget to a ranked contact list.
+// Render: dot -Tsvg rmab-workflow.dot -o rmab-workflow.svg
 digraph RMABWorkflow {
-    rankdir=LR;
-    node [shape=box, style=rounded, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=LR, compound=true, newrank=true, bgcolor="#ffffff", pad="0.3",
+           nodesep="0.25", ranksep="0.45", labelloc=t, labeljust=l,
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937"];
+    node  [shape=box, style="rounded,filled", penwidth=1.2, margin="0.16,0.07",
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937",
+           fillcolor="#ffffff", color="#94a3b8"];
+    edge  [color="#64748b", penwidth=1.1, arrowsize=0.7,
+           fontname="Helvetica,Arial,sans-serif", fontsize=9, fontcolor="#475569"];
 
-    // Problem
     subgraph cluster_problem {
-        label="The Problem";
-        style=filled;
-        color="#ffcccc";
-
-        caregivers [label="200,000\nCaregivers", shape=ellipse];
-        budget [label="Limited Budget\n(1,000 contacts/day)", shape=ellipse];
-        dropout [label="30% Dropout\nRate", shape=ellipse, color=red, style="filled,rounded"];
+        label=<<b>The constraint</b>>;
+        style="rounded,filled"; fillcolor="#fff1f2"; color="#fecdd3";
+        node [fillcolor="#ffe4e6", color="#be123c"];
+        participants [label=<<b>Many participants</b><br/><font point-size="9" color="#475569">engagement changes over time</font>>];
+        budget       [label=<<b>Small contact budget</b><br/><font point-size="9" color="#475569">example: 1,000 calls per day</font>>];
+        lapse        [label=<<b>Participants disengage</b><br/><font point-size="9" color="#475569">and drop out of the program</font>>];
     }
 
-    // RMAB Solution
-    subgraph cluster_rmab {
-        label="RMAB Solution";
-        style=filled;
-        color="#ccffcc";
-
-        cluster [label="1. Cluster\nby Behavior\n(~20 groups)"];
-        learn [label="2. Learn MDP\nParameters\n(transitions, rewards)"];
-        whittle [label="3. Compute\nWhittle Indices\n(priority scores)"];
-        recommend [label="4. Recommend\nTop-K\n(highest impact)"];
+    subgraph cluster_bandicoot {
+        label=<<b>Bandicoot</b>>;
+        style="rounded,filled"; fillcolor="#f0fdfa"; color="#99f6e4";
+        node [fillcolor="#ccfbf1", color="#0f766e"];
+        group  [label=<<b>1. Cluster</b><br/><font point-size="9" color="#475569">group participants<br/>by behavior</font>>];
+        learn  [label=<<b>2. Learn</b><br/><font point-size="9" color="#475569">transition probabilities<br/>per cluster</font>>];
+        score  [label=<<b>3. Score</b><br/><font point-size="9" color="#475569">Whittle index per<br/>(cluster, state)</font>>];
+        rank   [label=<<b>4. Rank</b><br/><font point-size="9" color="#475569">top-K participants<br/>within the budget</font>>];
     }
 
-    // Impact
-    subgraph cluster_impact {
-        label="Expected Impact";
-        style=filled;
-        color="#ccccff";
-
-        efficiency [label="+50%\nHealth Worker\nEfficiency", shape=ellipse, color=green, style="filled,rounded"];
-        completion [label="80%\nVaccination\nCompletion", shape=ellipse, color=green, style="filled,rounded"];
-        cost [label="-30%\nCost per\nVaccination", shape=ellipse, color=green, style="filled,rounded"];
+    subgraph cluster_outreach {
+        label=<<b>Outreach</b>>;
+        style="rounded,filled"; fillcolor="#fffbeb"; color="#fde68a";
+        node [fillcolor="#fef3c7", color="#b45309"];
+        contact [label=<<b>Contact the top K</b><br/><font point-size="9" color="#475569">call, SMS, visit, or check-in</font>>];
+        measure [label=<<b>Measure with an A/B test</b><br/><font point-size="9" color="#475569">ranking vs. current method;<br/>new data feeds the next training</font>>];
     }
 
-    // Flow
-    caregivers -> cluster;
-    budget -> cluster;
-    dropout -> cluster;
+    budget -> group [ltail=cluster_problem];
+    group -> learn -> score -> rank;
+    rank -> contact -> measure;
 
-    cluster -> learn;
-    learn -> whittle;
-    whittle -> recommend;
-
-    recommend -> efficiency;
-    recommend -> completion;
-    recommend -> cost;
+    label=<<font point-size="15"><b>How Bandicoot works</b></font><br align="left"/><font point-size="10" color="#64748b">Spend a fixed contact budget on the participants where a contact changes the most.</font><br align="left"/>>;
 }

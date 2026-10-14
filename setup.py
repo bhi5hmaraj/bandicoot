@@ -1,4 +1,4 @@
-"""Bandicoot: RMAB-based vaccination adherence optimization."""
+"""Bandicoot: restless bandit (RMAB) prioritization for outreach programs."""
 
 from setuptools import setup, find_packages
 
@@ -9,7 +9,7 @@ setup(
     name="bandicoot",
     version="0.1.0",
     author="Bandicoot Team",
-    description="RMAB-based vaccination adherence optimization for healthcare",
+    description="Restless bandit (RMAB) library that decides who to contact when outreach capacity is limited",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/bhi5hmaraj/bandicoot",

@@ -1,100 +1,50 @@
+// How an outreach program maps to a restless multi-armed bandit (RMAB).
+// Render: dot -Tsvg problem-modeling.dot -o problem-modeling.svg
 digraph ProblemModeling {
-    rankdir=TB;
-    node [shape=box, style=rounded, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=TB, compound=true, newrank=true, bgcolor="#ffffff", pad="0.3",
+           nodesep="0.3", ranksep="0.4", labelloc=t, labeljust=l,
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937"];
+    node  [shape=box, style="rounded,filled", penwidth=1.2, margin="0.16,0.07",
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937",
+           fillcolor="#ffffff", color="#94a3b8"];
+    edge  [color="#64748b", penwidth=1.1, arrowsize=0.7,
+           fontname="Helvetica,Arial,sans-serif", fontsize=9, fontcolor="#475569"];
 
-    // Title
-    label="How We Model the Immunization Problem";
-    labelloc="t";
-    fontsize=18;
+    mapping [shape=plain, label=<
+        <table border="1" cellborder="0" cellspacing="0" cellpadding="6" color="#cbd5e1" style="rounded">
+          <tr><td align="left" bgcolor="#dbeafe"><b>In the program</b></td><td align="left" bgcolor="#ccfbf1"><b>In the RMAB model</b></td></tr>
+          <tr><td align="left">A participant</td><td align="left">An arm, with its own Markov decision process</td></tr>
+          <tr><td align="left" bgcolor="#f8fafc">Engaged or not in the last period</td><td align="left" bgcolor="#f8fafc">State s: Responsive (R) or Unresponsive (U)</td></tr>
+          <tr><td align="left">Contact or no contact</td><td align="left">Action a: active or passive</td></tr>
+          <tr><td align="left" bgcolor="#f8fafc">Behavior changes over time</td><td align="left" bgcolor="#f8fafc">Transition probabilities P(s′ | s, a)</td></tr>
+          <tr><td align="left">Engagement is the goal</td><td align="left">Reward: +1 in R, −1 in U</td></tr>
+          <tr><td align="left" bgcolor="#f8fafc">Contacts per period are limited</td><td align="left" bgcolor="#f8fafc">Budget: at most K active arms per step</td></tr>
+        </table>>];
 
-    // Real World Problem
-    subgraph cluster_real_world {
-        label="Real-World Problem";
-        style=filled;
-        color="#ffe6e6";
-        fontsize=14;
-
-        rw_caregivers [label="200,000 Caregivers\n(Different behaviors)", shape=ellipse];
-        rw_states [label="Engagement States:\n• Some respond to SMS\n• Some ignore\n• Some lapse over time", shape=note];
-        rw_actions [label="Limited Actions:\n• Send SMS reminder\n• Make phone call\n• Do nothing (budget)", shape=note];
-        rw_outcomes [label="Outcomes:\n• Child vaccinated ✓\n• Child missed dose ✗\n• Unknown (pending)", shape=note];
-        rw_constraint [label="Constraint:\nOnly 1,000 contacts/day", shape=note, color=red, style=filled];
+    subgraph cluster_solve {
+        label=<<b>Bandicoot solves the model</b>>;
+        style="rounded,filled"; fillcolor="#f0fdfa"; color="#99f6e4";
+        node [fillcolor="#ccfbf1", color="#0f766e"];
+        group [label=<<b>Cluster</b><br/><font point-size="9" color="#475569">k-means on passive<br/>transition probabilities</font>>];
+        learn [label=<<b>Learn</b><br/><font point-size="9" color="#475569">Dirichlet-smoothed<br/>counts per cluster</font>>];
+        score [label=<<b>Score</b><br/><font point-size="9" color="#475569">Whittle index per<br/>(cluster, state)</font>>];
+        rank  [label=<<b>Rank</b><br/><font point-size="9" color="#475569">contact the K arms<br/>with the highest index</font>>];
+        {rank=same; group; learn; score; rank}
+        group -> learn -> score -> rank;
     }
 
-    // Mathematical Abstraction
-    subgraph cluster_abstraction {
-        label="Mathematical Abstraction (RMAB)";
-        style=filled;
-        color="#e6f7ff";
-        fontsize=14;
+    output [shape=plain, label=<
+        <table border="1" cellborder="0" cellspacing="0" cellpadding="5" color="#b45309" bgcolor="#fef3c7" style="rounded">
+          <tr><td align="left" colspan="4"><b>Output for one step</b>  <font point-size="9" color="#475569">(example, K = 3)</font></td></tr>
+          <tr><td align="left"><font point-size="9" color="#475569">Rank</font></td><td align="left"><font point-size="9" color="#475569">Participant</font></td><td align="left"><font point-size="9" color="#475569">Cluster, state</font></td><td align="right"><font point-size="9" color="#475569">Index</font></td></tr>
+          <tr><td align="left">1</td><td align="left">P-0412</td><td align="left">3, U</td><td align="right">1.21</td></tr>
+          <tr><td align="left">2</td><td align="left">P-1290</td><td align="left">7, U</td><td align="right">1.05</td></tr>
+          <tr><td align="left">3</td><td align="left">P-0077</td><td align="left">3, R</td><td align="right">0.76</td></tr>
+        </table>>];
 
-        abs_arms [label="K = 200,000 Arms\n(Each caregiver = 1 arm)", shape=component];
-        abs_states [label="States S:\n• Responsive (R)\n• Unresponsive (U)", shape=component];
-        abs_actions [label="Actions A:\n• Active (contact)\n• Passive (no contact)", shape=component];
-        abs_transitions [label="Transitions P(s'|s,a):\nHow state changes\nbased on action", shape=component];
-        abs_rewards [label="Reward R(s,a):\nP(vaccination | state, action)", shape=component];
-        abs_budget [label="Budget B = 1,000:\nMax active arms per day", shape=component, color=red, style="filled,rounded"];
-    }
+    mapping -> group [lhead=cluster_solve];
+    rank -> output;
+    output -> learn [style=dashed, constraint=false, label="observe the next state"];
 
-    // Bandicoot Solution
-    subgraph cluster_solution {
-        label="Bandicoot Solution Approach";
-        style=filled;
-        color="#e6ffe6";
-        fontsize=14;
-
-        sol_cluster [label="Clustering:\nGroup 200K → 20 clusters\n(similar behavior)", shape=component];
-        sol_learn [label="Learn Parameters:\nEstimate P(s'|s,a), R(s,a)\nper cluster", shape=component];
-        sol_whittle [label="Whittle Index:\nCompute priority score\nW(s) per (cluster, state)", shape=component];
-        sol_optimize [label="Optimization:\nRank all caregivers\nSelect top-1000", shape=component];
-        sol_adaptive [label="Adaptive Learning:\nUpdate based on\nobserved outcomes", shape=component];
-    }
-
-    // Decision Output
-    subgraph cluster_output {
-        label="Daily Decisions";
-        style=filled;
-        color="#fff9e6";
-        fontsize=14;
-
-        out_priorities [label="Priority List:\n1. CG-45678 (W=0.91)\n2. CG-12345 (W=0.87)\n...\n1000. CG-99234 (W=0.42)", shape=note];
-        out_actions [label="Recommended Actions:\n• Contact: 1,000 caregivers\n• No contact: 199,000", shape=note];
-        out_impact [label="Expected Impact:\n↑ Vaccination rate\n↓ Wasted effort", shape=note, color=green, style=filled];
-    }
-
-    // Flows: Real World -> Abstraction
-    rw_caregivers -> abs_arms [label="model as"];
-    rw_states -> abs_states [label="simplify to"];
-    rw_actions -> abs_actions [label="map to"];
-    rw_outcomes -> abs_rewards [label="define as"];
-    rw_constraint -> abs_budget [label="formalize as"];
-
-    // Flows: Abstraction -> Solution
-    abs_arms -> sol_cluster;
-    abs_states -> sol_learn;
-    abs_actions -> sol_learn;
-    abs_transitions -> sol_learn;
-    abs_rewards -> sol_learn;
-
-    sol_cluster -> sol_whittle;
-    sol_learn -> sol_whittle;
-    sol_whittle -> sol_optimize;
-    abs_budget -> sol_optimize;
-
-    sol_optimize -> sol_adaptive;
-
-    // Flows: Solution -> Output
-    sol_optimize -> out_priorities;
-    out_priorities -> out_actions;
-    out_actions -> out_impact;
-
-    // Feedback loop
-    out_impact -> sol_adaptive [label="observe", style=dashed, color=green];
-    sol_adaptive -> sol_learn [label="retrain weekly", style=dashed, color=green];
-
-    // Key Insight
-    insight [label="Key Insight:\nRMAB models the problem\nas a sequential decision\nprocess under uncertainty", shape=note, color=yellow, style=filled];
-    abs_arms -> insight [style=dotted];
-    abs_transitions -> insight [style=dotted];
+    label=<<font point-size="15"><b>From program to model</b></font><br align="left"/><font point-size="10" color="#64748b">Each participant is one arm. The budget limits how many arms are active per step.</font><br align="left"/>>;
 }

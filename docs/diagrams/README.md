@@ -1,136 +1,42 @@
-# Architecture Diagrams
+# Diagrams
 
-Visual representations of Bandicoot's architecture and workflows.
+Graphviz sources (`.dot`) and rendered SVGs. Edit the `.dot` file, then render it again and commit both files.
 
-## Diagrams
+| Diagram | Shows | Used in |
+|---|---|---|
+| [rmab-workflow](rmab-workflow.svg) | How Bandicoot turns a contact budget into a ranked list | [README](../../README.md) |
+| [problem-modeling](problem-modeling.svg) | How a program maps to an RMAB | [RMAB fundamentals](../rmab-fundamentals.md) |
+| [state-model](state-model.svg) | The 2-state model for one participant, with example indices | [RMAB fundamentals](../rmab-fundamentals.md) |
+| [system-architecture](system-architecture.svg) | Built and planned components | [README](../../README.md), [architecture](../architecture.md) |
+| [training-pipeline](training-pipeline.svg) | The planned weekly training job | [architecture](../architecture.md) |
+| [recommendation-flow](recommendation-flow.svg) | What `POST /api/v1/recommend` does | [architecture](../architecture.md) |
+| [vaccination-use-case](vaccination-use-case.svg) | The reference use case | [vaccination use case](../use-cases/vaccination.md) |
 
-### Conceptual Diagrams (For Stakeholders)
+## Render
 
-#### 1. Immunization Ecosystem
-**File:** [immunization-ecosystem.svg](./immunization-ecosystem.svg)
-
-Complete ecosystem showing the problem, stakeholders, workflows, Bandicoot's role, and measured impact.
-
-![Immunization Ecosystem](./immunization-ecosystem.svg)
-
----
-
-#### 2. Stakeholder Workflows
-**File:** [stakeholder-workflows.svg](./stakeholder-workflows.svg)
-
-Daily/weekly workflows for caregivers, health workers, NGO managers, and data scientists interacting with Bandicoot.
-
-![Stakeholder Workflows](./stakeholder-workflows.svg)
-
----
-
-#### 3. Problem Modeling
-**File:** [problem-modeling.svg](./problem-modeling.svg)
-
-How we translate the real-world immunization problem into RMAB mathematical framework and Bandicoot's solution.
-
-![Problem Modeling](./problem-modeling.svg)
-
----
-
-### Technical Diagrams (For Engineers)
-
-#### 4. System Architecture
-**File:** [system-architecture.svg](./system-architecture.svg)
-
-High-level overview of data flow between Suvita systems, Bandicoot service, and outputs.
-
-![System Architecture](./system-architecture.svg)
-
----
-
-#### 5. RMAB Workflow (Problem → Solution → Impact)
-**File:** [rmab-workflow.svg](./rmab-workflow.svg)
-
-Conceptual flow from the vaccination dropout problem to RMAB solution and expected impact.
-
-![RMAB Workflow](./rmab-workflow.svg)
-
----
-
-#### 6. Training Pipeline
-**File:** [training-pipeline.svg](./training-pipeline.svg)
-
-Weekly training job that clusters caregivers, learns MDP parameters, and computes Whittle indices (~30 minutes total).
-
-![Training Pipeline](./training-pipeline.svg)
-
----
-
-#### 7. Recommendation Flow
-**File:** [recommendation-flow.svg](./recommendation-flow.svg)
-
-Real-time API flow for generating top-K prioritized caregivers (<500ms p95 latency target).
-
-![Recommendation Flow](./recommendation-flow.svg)
-
----
-
-#### 8. Job Execution Abstraction
-**File:** [job-execution-abstraction.svg](./job-execution-abstraction.svg)
-
-SOLID architecture for cloud-agnostic job execution (GCP, AWS, Azure, Kubernetes).
-
-![Job Execution Abstraction](./job-execution-abstraction.svg)
-
----
-
-#### 9. State Model (MDP)
-**File:** [state-model.svg](./state-model.svg)
-
-2-state Markov Decision Process showing transitions, rewards, and Whittle indices.
-
-![State Model](./state-model.svg)
-
----
-
-## Generating SVGs
-
-To regenerate SVGs from source `.dot` files:
+Install Graphviz (`apt install graphviz` or `brew install graphviz`). Then run:
 
 ```bash
 cd docs/diagrams
-for file in *.dot; do
-  dot -Tsvg "$file" -o "${file%.dot}.svg"
-done
+for file in *.dot; do dot -Tsvg "$file" -o "${file%.dot}.svg"; done
 ```
 
-**Prerequisites:** `graphviz` installed (`apt install graphviz` or `brew install graphviz`)
+## Style rules
 
----
+All diagrams use the same style. Copy the `graph`, `node`, and `edge` blocks from an existing file.
 
-## Editing Diagrams
+| Color | Fill | Border | Meaning |
+|---|---|---|---|
+| Teal | `#ccfbf1` | `#0f766e` | Bandicoot components |
+| Blue | `#dbeafe` | `#2563eb` | Program systems and inputs |
+| Slate | `#f1f5f9` | `#64748b` | Storage |
+| Violet | `#ede9fe` | `#7c3aed` | People |
+| Amber | `#fef3c7` | `#b45309` | Outreach, results, and evaluation |
+| Rose | `#ffe4e6` | `#be123c` | Problems and constraints |
 
-1. Edit the `.dot` file (Graphviz DOT language)
-2. Regenerate SVG: `dot -Tsvg filename.dot -o filename.svg`
-3. Commit both `.dot` (source) and `.svg` (rendered)
-
-**DOT Language Reference:** https://graphviz.org/documentation/
-
----
-
-## Where Diagrams Are Used
-
-| Diagram | Referenced In |
-|---------|---------------|
-| **Conceptual (For Stakeholders)** | |
-| immunization-ecosystem.svg | README.md, theory/02-healthcare-problem.md |
-| stakeholder-workflows.svg | README.md, docs/MVP_PRD.md |
-| problem-modeling.svg | README.md, theory/01-rmab-fundamentals.md |
-| **Technical (For Engineers)** | |
-| system-architecture.svg | README.md, tech-design/00-overview.md |
-| rmab-workflow.svg | README.md, theory/02-healthcare-problem.md |
-| training-pipeline.svg | tech-design/02-rmab-core.md |
-| recommendation-flow.svg | tech-design/03-api-design.md |
-| job-execution-abstraction.svg | tech-design/06-job-execution.md |
-| state-model.svg | theory/01-rmab-fundamentals.md |
-
----
-
-**Author:** Bandicoot Team
-**Last Updated:** November 2025
+- A dashed border means planned (not built).
+- Font: `Helvetica,Arial,sans-serif`, 10 pt for nodes, 9 pt for details and edge labels.
+- Node labels: a bold title, then one or two short detail lines in gray (`#475569`).
+- Each diagram has a title and a one-line subtitle at the top left.
+- Label example values as examples. Do not show impact numbers without a source.
+- The background is white, so the diagrams stay readable in dark mode.

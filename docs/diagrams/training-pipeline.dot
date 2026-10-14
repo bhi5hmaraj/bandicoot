@@ -1,74 +1,48 @@
+// Planned weekly training job. Steps 1 to 4 call existing bandicoot.core code.
+// Render: dot -Tsvg training-pipeline.dot -o training-pipeline.svg
 digraph TrainingPipeline {
-    rankdir=TB;
-    node [shape=box, style=rounded, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=LR, newrank=true, bgcolor="#ffffff", pad="0.3",
+           nodesep="0.3", ranksep="0.35", labelloc=t, labeljust=l,
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937"];
+    node  [shape=box, style="rounded,filled", penwidth=1.2, margin="0.14,0.08",
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937",
+           fillcolor="#ccfbf1", color="#0f766e"];
+    edge  [color="#64748b", penwidth=1.1, arrowsize=0.7,
+           fontname="Helvetica,Arial,sans-serif", fontsize=9, fontcolor="#475569"];
 
-    start [label="Start: Sunday 02:00", shape=ellipse, color=green, style=filled];
+    history [shape=cylinder, style=filled, fillcolor="#dbeafe", color="#2563eb",
+             label=<<b>History</b><br/><font point-size="9" color="#475569">engagement and<br/>contact logs</font>>];
 
-    // Extract
-    subgraph cluster_extract {
-        label="1. Extract (10 min)";
-        style=filled;
-        color=lightblue;
+    extract [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>1. Extract</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">build (state, action,</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">next state) rows</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#0f766e">mdp.extract_transitions_from_history</font></td></tr></table>>];
+    group [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>2. Cluster</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">k-means on passive transition</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">probabilities per participant</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#0f766e">clustering.PassiveBehaviorClusterer</font></td></tr></table>>];
+    learn [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>3. Learn</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">Dirichlet-smoothed transition</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">counts per cluster</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#0f766e">mdp.TransitionLearner</font></td></tr></table>>];
+    score [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>4. Score</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">Whittle index per</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">(cluster, state)</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#0f766e">whittle.WhittleIndexSolver</font></td></tr></table>>];
+    mapper [style="rounded,filled,dashed", label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>5. Cold-start mapper</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">enrollment features</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">to cluster</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569"><i>planned</i></font></td></tr></table>>];
 
-        extract [label="Pull 6 months\nhistorical data"];
-        format [label="Transform to\n(state, action, reward)"];
-    }
+    store [shape=cylinder, style="filled,dashed", fillcolor="#f1f5f9", color="#64748b",
+           label=<<b>Model store</b><br/><font point-size="9" color="#475569">clusters, parameters,<br/>indices (planned)</font>>];
 
-    // Cluster
-    subgraph cluster_cluster {
-        label="2. Cluster (15 min)";
-        style=filled;
-        color=lightyellow;
+    history -> extract -> group -> learn -> score -> mapper -> store;
 
-        features [label="Compute passive\ntransition features"];
-        kmeans [label="K-means clustering\n(k=15-25)"];
-        assign [label="Assign 200K caregivers\nto ~20 clusters"];
-    }
-
-    // Learn
-    subgraph cluster_learn {
-        label="3. Learn MDP (10 min)";
-        style=filled;
-        color=lightgreen;
-
-        bayesian [label="Bayesian parameter\nlearning per cluster"];
-        validate [label="Validate transition\nprobabilities"];
-    }
-
-    // Whittle
-    subgraph cluster_whittle {
-        label="4. Whittle Indices (7 min)";
-        style=filled;
-        color=lightcoral;
-
-        compute [label="Binary search +\nvalue iteration"];
-        cache [label="Store in Redis\nfor O(1) lookup"];
-    }
-
-    // FO Mapper
-    subgraph cluster_fo {
-        label="5. FO Mapper (5 min)";
-        style=filled;
-        color=lavender;
-
-        train_rf [label="Train RandomForest\ndemographics → cluster"];
-        save_model [label="Save to Cloud Storage"];
-    }
-
-    end [label="Complete: ~30 min", shape=ellipse, color=green, style=filled];
-
-    // Flow
-    start -> extract;
-    extract -> format;
-    format -> features;
-    features -> kmeans;
-    kmeans -> assign;
-    assign -> bayesian;
-    bayesian -> validate;
-    validate -> compute;
-    compute -> cache;
-    cache -> train_rf;
-    train_rf -> save_model;
-    save_model -> end;
+    label=<<font point-size="15"><b>Weekly training job</b>  <font point-size="10" color="#64748b">(planned)</font></font><br align="left"/><font point-size="10" color="#64748b">Steps 1 to 4 call existing library code. BandicootRMAB.fit runs them in one call today.</font><br align="left"/>>;
 }

@@ -1,66 +1,55 @@
+// Request flow of POST /api/v1/recommend as built in app/api/routes.py.
+// Render: dot -Tsvg recommendation-flow.dot -o recommendation-flow.svg
 digraph RecommendationFlow {
-    rankdir=LR;
-    node [shape=box, style=rounded, fontname="Arial"];
-    edge [fontname="Arial"];
+    graph [rankdir=LR, newrank=true, bgcolor="#ffffff", pad="0.3",
+           nodesep="0.3", ranksep="0.35", labelloc=t, labeljust=l,
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937"];
+    node  [shape=box, style="rounded,filled", penwidth=1.2, margin="0.14,0.08",
+           fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="#1f2937",
+           fillcolor="#ccfbf1", color="#0f766e"];
+    edge  [color="#64748b", penwidth=1.1, arrowsize=0.7,
+           fontname="Helvetica,Arial,sans-serif", fontsize=9, fontcolor="#475569"];
 
-    request [label="GET /recommend\n?budget=1000", shape=ellipse, color=blue, style=filled];
+    request [fillcolor="#dbeafe", color="#2563eb", label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>POST /api/v1/recommend</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">budget, caregiver_ids,</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">current_states</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">header: X-API-Key</font></td></tr></table>>];
 
-    // Query
-    subgraph cluster_query {
-        label="1. Query Caregivers (50ms)";
-        style=filled;
-        color=lightblue;
+    check [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>1. Check</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">API key (if auth is on)</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">model is fitted, else 400</font></td></tr></table>>];
+    inputs [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>2. Inputs</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">IDs and states from the request;</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">random mock data if absent</font></td></tr></table>>];
+    lookup [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>3. Look up</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">index of (cluster, state);</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">unknown participant: median</font></td></tr></table>>];
+    select [label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>4. Select</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">top K by index</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">(numpy argpartition)</font></td></tr></table>>];
 
-        fetch [label="Fetch eligible\ncaregivers"];
-        filter [label="Filter: warmup complete\nAB test group"];
-    }
+    response [fillcolor="#fef3c7", color="#b45309", label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>Response</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">ranked IDs, scores, states,</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">clusters, reason, metadata</font></td></tr></table>>];
 
-    // Lookup
-    subgraph cluster_lookup {
-        label="2. Lookup Indices (10ms)";
-        style=filled;
-        color=lightyellow;
+    model [shape=cylinder, style=filled, fillcolor="#f1f5f9", color="#64748b",
+           label=<<b>In-memory model</b><br/><font point-size="9" color="#475569">fitted BandicootRMAB</font>>];
+    planned [style="rounded,dashed", fillcolor="#ffffff", color="#94a3b8", label=<<table border="0" cellspacing="1">
+        <tr><td align="left"><b>Planned</b></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">read participants and states from storage</font></td></tr>
+        <tr><td align="left"><font point-size="9" color="#475569">log each response; p95 latency target 500 ms</font></td></tr></table>>];
 
-        redis_get [label="Redis GET\nwhittle:{cluster}:{state}"];
-        parallel [label="O(1) per caregiver\n~10ms for 200K"];
-    }
+    request -> check -> inputs -> lookup -> select -> response;
+    model -> lookup [style=dashed, arrowhead=none];
+    {rank=same; lookup; model}
+    {rank=same; inputs; planned}
+    planned -> inputs [style=invis];
 
-    // Rank
-    subgraph cluster_rank {
-        label="3. Rank & Select (100ms)";
-        style=filled;
-        color=lightgreen;
-
-        sort [label="Sort by Whittle index\n(descending)"];
-        top_k [label="Select top-1000"];
-        enrich [label="Add context:\nreason, district"];
-    }
-
-    // Log
-    subgraph cluster_log {
-        label="4. Log & Return (50ms)";
-        style=filled;
-        color=lightcoral;
-
-        log [label="Log to PostgreSQL\nrecommendations_log"];
-        response [label="Return JSON\n+ metadata"];
-    }
-
-    result [label="Response:\n1000 caregivers\nranked by priority", shape=ellipse, color=green, style=filled];
-
-    // Flow
-    request -> fetch;
-    fetch -> filter;
-    filter -> redis_get;
-    redis_get -> parallel;
-    parallel -> sort;
-    sort -> top_k;
-    top_k -> enrich;
-    enrich -> log;
-    log -> response;
-    response -> result;
-
-    // Latency annotation
-    latency [label="Total: <500ms\n(p95 target)", shape=note, color=yellow, style=filled];
-    result -> latency [style=dashed];
+    label=<<font point-size="15"><b>Recommendation request</b></font><br align="left"/><font point-size="10" color="#64748b">What the service does for each call. Field names use the code's caregiver_id.</font><br align="left"/>>;
 }
