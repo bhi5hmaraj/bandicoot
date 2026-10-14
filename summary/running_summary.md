@@ -20,8 +20,8 @@ Build an AI-powered system using **Restless Multi-Armed Bandits** that:
 
 ### Proven Success
 - **Google Research + ARMMAN NGO** deployed this in India
-- Served 100K+ beneficiaries, scaled to 3 million
-- **30% reduction in dropout rates** (from ~35% to ~24%)
+- Served 100K+ beneficiaries
+- **~30% fewer engagement drops** in a 7-week field study with 23,003 beneficiaries
 - **SAHELI** system is first production RMAB in public health
 
 ### Technical Approach

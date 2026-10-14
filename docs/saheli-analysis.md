@@ -2,7 +2,7 @@
 
 **Source:** https://github.com/armman-projects/SAHELI
 **Organization:** ARMMAN + Google Research
-**Impact:** 62% → 80% vaccination completion (18% absolute improvement)
+**Impact:** ~30% fewer engagement drops vs. standard of care (field study, 23,003 beneficiaries, 7 weeks; Mate et al., AAAI 2022)
 **Scale:** 98K beneficiaries served, 20K enrolling per month
 
 ---

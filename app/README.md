@@ -234,5 +234,5 @@ Before deploying to production:
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/anthropics/bandicoot/issues
+- GitHub Issues: https://github.com/bhi5hmaraj/bandicoot/issues
 - Documentation: /docs

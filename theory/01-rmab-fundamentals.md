@@ -431,8 +431,8 @@ Policy: Intervene on top-B arms ranked by W(s)
 2. **Weber, R. & Weiss, G. (1990).** "On an Index Policy for Restless Bandits." *Journal of Applied Probability*.
 3. **Papadimitriou, C. & Tsitsiklis, J. (1999).** "The Complexity of Optimal Queuing Network Control." *Mathematics of Operations Research*.
 4. **Mate, A. et al. (2020).** "Collapsing Bandits and Their Application to Public Health Interventions." *NeurIPS*.
-5. **Killian, J. et al. (2021).** "Learning to Prescribe Interventions for Tuberculosis Patients using Digital Adherence Data." *KDD*.
-6. **Verma, A. et al. (2023).** "Restless Multi-Armed Bandits for Maternal and Child Health: SAHELI Deployment." *IAAI*.
+5. **Killian, J. et al. (2019).** "Learning to Prescribe Interventions for Tuberculosis Patients using Digital Adherence Data." *KDD*.
+6. **Verma, S. et al. (2023).** "Increasing Impact of Mobile Health Programs: SAHELI for Maternal and Child Care." *AAAI*.
 
 ---
 

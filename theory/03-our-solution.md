@@ -800,7 +800,7 @@ Total Budget: $200/month
 
 ## Summary
 
-### What We Built
+### What We Designed
 - RMAB-based prioritization system for 200K caregivers
 - Clustering for scalability (20 clusters)
 - Whittle indices for optimal allocation
@@ -810,13 +810,11 @@ Total Budget: $200/month
 ### Key Innovations
 - Adapted SAHELI approach to NGO context (smaller budget)
 - Pre-computed indices for <500ms latency
-- Integrated with Suvita's existing infrastructure
+- Designed to integrate with Suvita's existing infrastructure
 - A/B testing framework for validation
 
 ### Expected Impact
-- 20-26% improvement in vaccination completion
-- 14,000+ children vaccinated per year
-- $8K/month cost savings for Suvita
+- Not estimated yet. The MVP A/B test will measure the effect on vaccination. See [Expected Impact for Suvita](02-healthcare-problem.md#expected-impact-for-suvita).
 
 ### Next Steps
 - Week 1-2: Core infrastructure + algorithms

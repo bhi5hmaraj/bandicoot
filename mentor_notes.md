@@ -1,6 +1,6 @@
 # MedhAI Mentor Notes: Bandicoot Architecture Review
 
-**Reviewer:** MedhAI (Principal Engineer, ex-Google AI)
+**Reviewer:** MedhAI (AI mentor persona; not a review by a person)
 **Review Date:** November 2025
 **Scope:** MVP PRD + 6 Technical Design Documents
 **Context:** 6-week MVP for Suvita NGO, 200K caregivers, ~$200/month budget
@@ -1087,5 +1087,5 @@ Happy to dive deeper on any section. Good luck with the MVP! 🚀
 
 **Signed,**
 **MedhAI**
-*Ex-Google Principal Engineer, AI for Social Good*
+*AI mentor persona*
 *Mentor, Not Your Boss™*

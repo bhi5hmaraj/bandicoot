@@ -17,11 +17,10 @@ Health NGOs working on maternal and child care (like Suvita in India) face a fun
 
 ### The Proven Solution: Restless Multi-Armed Bandits (RMAB)
 
-Google Research and ARMMAN NGO proved this works in India:
-- **30% reduction in dropout rates** (from ~35% to ~24%)
+Google Research and ARMMAN NGO showed this works in India:
+- **~30% fewer engagement drops** in a 7-week field study with 23,003 beneficiaries
 - Deployed at scale: **100,000+ beneficiaries**
 - Now in production as **SAHELI** - the first RMAB system in public health
-- Scaled to **3 million mothers** nationally
 
 **How it works:** The system learns which mothers/caregivers are most likely to benefit from a call or SMS, then prioritizes limited health worker time to maximize engagement and health outcomes.
 
@@ -175,7 +174,7 @@ _(To be determined - but the alternative name "Parvai" was considered, meaning "
 ### Research Foundation
 
 Built on peer-reviewed research:
-1. **SAHELI/ARMMAN Field Study** (AAAI 2022) - 30% engagement improvement
+1. **SAHELI/ARMMAN Field Study** (AAAI 2022) - ~30% fewer engagement drops
 2. **Decision-Focused Learning** (Wang et al.) - Train directly for policy optimization
 3. **BCoR** (Liang et al.) - Bayesian contextual RMABs for non-stationary behavior
 4. **TARI** (Danassis et al.) - Non-Markovian policies, 90% improvement

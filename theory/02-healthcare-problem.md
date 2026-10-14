@@ -197,40 +197,27 @@ After each intervention:
 
 ## Real-World Validation: SAHELI
 
-### Google/ARMMAN Deployment (2021-2023)
+### ARMMAN + Google Research Field Study
 
 **Context:**
-- ARMMAN: NGO serving 12+ million mothers in India
-- Partnered with Google Research to deploy RMAB
-- Pilot in Maharashtra state
+- ARMMAN runs mMitra, a free automated voice-message programme for pregnant women and new mothers in India.
+- Health workers make live service calls to a small number of beneficiaries each week.
+- SAHELI uses an RMAB to choose who gets these calls.
 
-**Study Design:**
-- **Treatment group:** 3,000 caregivers, RMAB-prioritized outreach
-- **Control group:** 3,000 caregivers, standard care
-- Duration: 12 months
-- Metrics: Vaccination completion rate (all doses)
+**Study Design (Mate et al., AAAI 2022):**
+- 23,003 beneficiaries, 7 weeks
+- Three groups: RMAB-selected calls, round-robin calls, current standard of care
+- Metric: engagement drops (beneficiaries who stop listening to the voice messages)
 
-**Results (Published IAAI 2023):**
+**Results:**
+- The RMAB group reduced engagement drops by ~30%.
+- The improvement over both comparison groups was statistically significant.
+- SAHELI then went into production and reached ~100K beneficiaries (Verma et al., AAAI 2023).
 
-| Metric | Control (Standard) | Treatment (RMAB) | Improvement |
-|--------|-------------------|------------------|-------------|
-| **Vaccination Completion** | 62.3% | 80.1% | **+28.6%** |
-| **SMS Open Rate** | 18.2% | 31.7% | **+74.2%** |
-| **Cost per Successful Vaccination** | $12.40 | $8.60 | **-30.6%** |
-| **Health Worker Efficiency** | 15 calls/vaccination | 10 calls/vaccination | **+50%** |
-
-**Key Findings:**
-1. RMAB reduced dropout by **28.6%** (62% → 80% completion)
-2. More efficient use of health worker time
-3. Higher engagement (caregivers felt SMS were relevant)
-4. System improved over time (learning effect visible after 3 months)
-
-**Quotes from Field:**
-> "Before, we were calling everyone blindly. Now we focus on who actually needs help."
-> — Health Worker, ARMMAN
-
-> "I noticed the messages were more timely. They knew when I was likely to miss an appointment."
-> — Mother in treatment group
+**Limits for Suvita:**
+- SAHELI measured engagement with voice messages, not vaccination.
+- No published SAHELI result reports vaccination completion or cost per vaccination.
+- Bandicoot must measure its own effect on vaccination with an A/B test.
 
 ---
 
@@ -329,27 +316,13 @@ cluster_id = predict_cluster(age, district, parity, enrollment_source)
 
 ## Expected Impact for Suvita
 
-### Baseline (Current State)
+There is no impact estimate yet.
 
-- **Vaccination completion:** ~65%
-- **Dropout rate:** ~35%
-- **SMS open rate:** ~15%
-- **Outreach:** Random/heuristic
+- SAHELI's published result is ~30% fewer engagement drops with voice messages (see above). It does not report vaccination outcomes.
+- Suvita's programme is different: SMS reminders, volunteer ambassadors, and vaccination as the outcome.
+- The MVP A/B test (RMAB vs. current method, ≥1,000 caregivers) will measure the effect on vaccination attendance.
 
-### Projected with Bandicoot (Conservative Estimates)
-
-Based on SAHELI results, scaled to Suvita context:
-
-| Metric | Current | Projected | Change |
-|--------|---------|-----------|--------|
-| **Vaccination Completion** | 65% | 78-82% | **+20-26%** |
-| **Dropout Rate** | 35% | 18-22% | **-37-49%** |
-| **SMS Open Rate** | 15% | 25-30% | **+67-100%** |
-| **Cost Efficiency** | Baseline | -25-30% | **Save ~$8K/month** |
-
-**Impact in Human Terms:**
-- **200,000 caregivers** × 35% current dropout = **70,000 children** at risk
-- **20% reduction in dropout** = **14,000 additional children** fully vaccinated per year
+Add projections here only after the A/B test, with a source for each number.
 
 ---
 
@@ -430,14 +403,13 @@ Based on SAHELI results, scaled to Suvita context:
 - Adaptive learning improves over time
 
 ### The Evidence
-- SAHELI deployment: 28.6% reduction in dropout
-- Higher engagement, lower cost per vaccination
-- Proven at scale (12M+ mothers reached by ARMMAN)
+- SAHELI field study: ~30% fewer engagement drops (23,003 beneficiaries, 7 weeks)
+- SAHELI reached ~100K beneficiaries in production
+- No published vaccination outcome yet
 
 ### The Impact
-- **14,000+ children** vaccinated who would otherwise drop out
-- **$8K/month** cost savings for Suvita
-- **Replicable** to other NGOs and government programs
+- To be measured by the MVP A/B test
+- Goal: replicable to other NGOs and government programs
 
 ---
 
@@ -452,13 +424,11 @@ Based on SAHELI results, scaled to Suvita context:
 ## References
 
 1. **WHO (2024).** "Immunization Coverage Factsheet." World Health Organization.
-2. **ARMMAN (2022).** "mMitra Program Impact Report." ARMMAN Annual Report.
-3. **Verma, A. et al. (2023).** "Restless Multi-Armed Bandits for Maternal and Child Health: SAHELI Field Study." *Innovative Applications of AI (IAAI)*.
-4. **Killian, J. et al. (2021).** "Beyond Contextual Bandits: RMABs for Public Health." *ACM COMPASS*.
-5. **Mate, A. et al. (2022).** "Field Study of Collapsing Bandits for Tuberculosis." *AAAI*.
+2. **Verma, S. et al. (2023).** "Increasing Impact of Mobile Health Programs: SAHELI for Maternal and Child Care." *AAAI*.
+3. **Mate, A. et al. (2022).** "Field Study in Deploying Restless Multi-Armed Bandits: Assisting Non-Profits in Improving Maternal and Child Health." *AAAI*.
 
 ---
 
 **Author:** Bandicoot Team
 **Audience:** Suvita stakeholders, NGO partners, policymakers
-**Last Updated:** November 2025
+**Last Updated:** October 2026

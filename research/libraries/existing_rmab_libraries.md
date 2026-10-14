@@ -15,7 +15,7 @@ Research document tracking existing open-source RMAB implementations that we cou
   - 2-state RMAB
   - Binary search + value iteration
 - **Pros:**
-  - Proven to work (62% → 80% improvement)
+  - Field-tested (~30% fewer engagement drops, Mate et al., AAAI 2022)
   - Well-documented
   - Production-tested
 - **Cons:**
