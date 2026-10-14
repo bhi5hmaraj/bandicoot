@@ -54,7 +54,7 @@ Bandicoot has no impact data yet. The method comes from SAHELI, which runs in mM
 
 These results measure engagement with voice messages. Each new program must measure its own outcomes with an A/B test.
 
-In experiment 02, the Whittle solver in this repository matched SAHELI's solver on 53 of 53 test cases (max difference 0.00009). See [experiments/INSIGHTS.md](experiments/INSIGHTS.md).
+In experiment 02, the solver in this repository matched SAHELI's `planinf` solver (without its sleeping constraint) on 53 of 53 test cases (max difference 0.00009). Both solvers search one subsidy per state. For the higher-index state, this value differs from the textbook Whittle index. See [experiments/INSIGHTS.md](experiments/INSIGHTS.md) and [RMAB fundamentals](docs/rmab-fundamentals.md).
 
 ## Quick start
 

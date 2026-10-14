@@ -8,6 +8,7 @@ Terms: a **participant** is one person enrolled in the **program** (one arm). A 
 
 | Question | Context | Options | Lean |
 |---|---|---|---|
+| Index definition | The solver searches one subsidy per state at once, like SAHELI's `planinf`. For the higher-index state, the value differs from the textbook Whittle index (diagram example: 1.21 vs. 1.57). See [RMAB fundamentals](rmab-fundamentals.md). | Keep SAHELI-compatible values; switch to a scalar-subsidy search | None. Check whether the top-K sets change on real data. |
 | Number of clusters (k) | Too few clusters lose detail. Too many overfit sparse data and add index computations. | Keep 20 (the SAHELI value); choose k by silhouette score; use segments from program staff; start with coarse clusters, then refine | None. Code default is 20. Sweep k on real data first. |
 | Discount factor (gamma) | Gamma sets the planning horizon, about 1/(1 - gamma) steps. | 0.99 (about 100 steps); 0.95 (about 20); 0.90 (about 10); one value per participant life stage | None. Code default is 0.99. Run a sensitivity test. |
 | Number of states | Two states can hide partial engagement. More states need more data per cluster and cost more to solve. | 2 states; 3 levels; 4 levels; continuous score (does not fit a discrete RMAB) | 2 states for the first version (decided). Revisit when the data supports more. |
