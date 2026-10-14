@@ -1,648 +1,91 @@
-# SAHELI Implementation Analysis
+# SAHELI code analysis
 
-**Source:** https://github.com/armman-projects/SAHELI
-**Organization:** ARMMAN + Google Research
-**Impact:** ~30% fewer engagement drops vs. standard of care (field study, 23,003 beneficiaries, 7 weeks; Mate et al., AAAI 2022)
-**Scale:** 98K beneficiaries served, 20K enrolling per month
+SAHELI is the RMAB system of ARMMAN and Google Research. It selects beneficiaries of the mMitra voice-message program for service calls. Its code is at [github.com/armman-projects/SAHELI](https://github.com/armman-projects/SAHELI) (Apache-2.0). This page describes that code as read on 2026-10-14. It also lists how Bandicoot differs.
 
----
+## Evidence
 
-## Overview
+| Source | Finding |
+|---|---|
+| Mate et al. (2022), AAAI | Field study with 23,003 beneficiaries over 7 weeks. Three groups: RMAB-selected service calls, round-robin calls, and the current standard of care. The RMAB group had about 30% fewer engagement drops, a statistically significant result over both other groups. |
+| Mate et al. (2022) | Engagement means listening to the automated voice messages. The study did not measure a vaccination outcome. |
+| Verma et al. (2023), AAAI | SAHELI reached about 100K beneficiaries. |
+| SAHELI `data_description.md` | 98K beneficiaries served, 20K enrolling per month, 1000 interventions per week, 6-week warmup before service calls start. |
 
-SAHELI is the proven RMAB implementation for maternal health that Bandicoot is based on. This document analyzes their codebase to inform our library-first development approach.
+## Repository structure
 
----
+| File | Content |
+|---|---|
+| `pipeline.py` | The ranking script: load data, predict clusters, find states, look up indices, rank, push the top $K$. |
+| `whittle_utils.py` | `get_reward`, `convertAxis`, and `planinf` (the Whittle index solver). |
+| `data_description.md` | Schema of the beneficiary features and call records. |
+| `README.md`, `LICENSE.txt`, `NOTICE` | Overview, contacts, license. |
 
-## Codebase Structure
+Missing parts:
 
-**Extremely simple and focused:**
-```
-SAHELI/
-├── pipeline.py           # Main orchestration (122 lines)
-├── whittle_utils.py      # Whittle index computation (169 lines)
-├── data_description.md   # Data schema
-├── data_utils.py         # (referenced, not in repo)
-├── model_utils.py        # (referenced, not in repo)
-└── armman_db_utils.py    # (referenced, not in repo)
-```
+- `pipeline.py` imports `data_utils`, `model_utils`, and `armman_db_utils`. These files are not in the repository.
+- `pipeline.py` imports `load_precomputed_whittle_indices` from `whittle_utils`. `whittle_utils.py` does not define it.
+- The repository has no clustering code and no transition-estimation code.
 
-**Key Insight:** The core RMAB logic is ~300 lines of Python. The rest is data loading and database integration.
+So `pipeline.py` does not run as published. `planinf` runs on its own.
 
----
+## Pipeline steps
 
-## Configuration Parameters
+1. Load the budget $K$ and the registration window from a parameters table. The docstring gives $K = 1000$.
+2. Load static features, beneficiary records, and call records.
+3. Load a mapping model (`cls`, `scaler`) and a table of precomputed indices `m_values[cluster, state]`.
+4. Predict a cluster for every beneficiary from static features: `cls.predict(scaler.transform(static_features))`.
+5. Skip each beneficiary who is already in the intervention table.
+6. Find the current state of each remaining beneficiary.
+7. Look up the index, sort in descending order, and push the top $K$.
 
-```python
-CONFIG = {
-    "problem": {
-        "orig_states": ['L', 'H'],           # Low-risk (E), High-risk (NE)
-        "actions": ["N", "I"],                # No intervention, Intervention
-    },
-    "time_step": 7,                           # Weekly decisions
-    "gamma": 0.99,                            # Discount factor
-    "clusters": 20,                           # K-means clusters
-    "transitions": "weekly",
-    "clustering": "kmeans",
-    "interventions": 1000,                    # Budget K
-}
-```
+`CONFIG` sets `gamma = 0.99`, `clusters = 20`, `clustering = "kmeans"`, `time_step = 7`, and `transitions = "weekly"`.
 
-**Mapping to Bandicoot:**
-- `L` (Low-risk) = `R` (Responsive) in our design
-- `H` (High-risk) = `U` (Unresponsive) in our design
-- `N` (No intervention) = Passive action
-- `I` (Intervention) = Active action
+## State definition
 
----
+- The window holds calls with `startdate` in $[d - 7, d)$. Here $d$ is today in days since 2018-01-01.
+- Engaged (E, also "L" for low risk of dropout): at least one call in the window has `duration >= 30`. The repository does not state the unit.
+- Not engaged (NE, also "H" for high risk): no such call.
+- The script also counts connected calls (`duration > 0`), but it does not use that count.
+- E maps to column 2 of `m_values` and NE to column 3.
 
-## Data Schema
+## Whittle computation (`planinf`)
 
-### Socio-Demographic Features
-```
-- enroll_gest_age: Gestation age at enrollment
-- registration_date: Registration date
-- language: Preferred language
-- age: Beneficiary age
-- education: 7 levels (Illiterate to Post Graduate)
-- phone_owner: Mother/Husband/Family
-- call_slots: Preferred time slot
-- enroll_delivery_status: Already delivered? (binary)
-- ChannelType: Hospital/Door-to-Door/Partner NGO
-- income_bracket: 7 brackets (0-5k to >30k INR)
-- ngo_hosp_id: Hospital ID
-- g, p, s, l: Gravidity, Parity, Stillbirths, Live births
-```
+- **Input:** array axes `[action, state, next_state]`, where state 1 is the engaging state. `convertAxis` changes this to `[state, next_state, action]` with state 0 = L.
+- **Reward:** $+1$ in L, $-1$ in H. The passive action ("N") adds the subsidy $m$ of the current state.
+- **Search:** one subsidy per state in $[-2, 2]$. Each step halves the interval of the state with the largest $\lvert Q(s, I) - Q(s, N) \rvert$.
+- **Stop rules:** that largest difference is at most $10^{-5}$, or the subsidies change by less than $10^{-20}$. There is no iteration cap.
+- **Value iteration:** restarts from $V = 0$ at each search step. Updates $V$ in place, state by state. Stops when the largest change is at most $10^{-4}$.
+- **Output:** `[m[-1], m[-2]]`, which is `[W(NE), W(E)]`.
 
-### Call Data Features
-```
-- user_id: Unique beneficiary ID
-- startdatetime: Call timestamp
-- duration: Call duration (seconds)
-- gest_age: Gestational age when call received
-- callStatus: Call connection status
-- dropreason: Reason for call end
-- media_id: Message content ID
-```
+`planinf` has two modes:
 
-**Key for Bandicoot (Suvita Immunization):**
-We'll adapt this schema to:
-- Replace gestation_age with child_age
-- Replace delivery_status with vaccination_status
-- Keep demographics (age, education, income, etc.)
-- Keep engagement data (SMS delivery, opens, duration)
+| Mode | Model |
+|---|---|
+| `sleeping_constraint=True` (default) | Four states: L0, H0, L, H. An intervention in L or H moves the arm to L0 or H0. In L0 and H0, both actions follow the passive dynamics forever. So each beneficiary can benefit from at most one intervention. |
+| `sleeping_constraint=False` | The plain two-state model. |
 
----
+The pipeline reads columns 2 and 3 of a four-column index table. This suggests that the deployed indices use the default four-state mode.
 
-## State Determination Logic
+## How Bandicoot differs
 
-```python
-# From pipeline.py lines 81-93
-past_days_calls = call_data[
-    (call_data["user_id"]==puser_id) &
-    (call_data["startdate"]<date_num) &
-    (call_data["startdate"]>=date_num - 7)  # Last 7 days
-]
+| Aspect | SAHELI | Bandicoot |
+|---|---|---|
+| Array layout | Input `[a, s, s']`, state 1 = engaging | `[s, s', a]`, state 0 = Responsive |
+| Model | Default: one intervention per beneficiary (sleeping mode) | Two states, repeated contact allowed. Same as `planinf(sleeping_constraint=False)`. |
+| Value iteration | In place, state by state | Both states update from the previous $V$ |
+| Stop rules | $10^{-5}$, $10^{-4}$, subsidy change below $10^{-20}$, no cap | $10^{-5}$, $10^{-4}$, cap of 1000 search iterations |
+| Return order | `[W(NE), W(E)]` | `(W(R), W(U))` |
+| Cluster assignment | Mapping model from static features, for every beneficiary | k-means label from passive history. An unknown ID gets the median index. No feature model. |
+| Clustering and estimation | Not published | `clustering.py`, `mdp.py` (Dirichlet smoothing, $\alpha = 1$) |
+| Recent contacts | Skips beneficiaries in the intervention table | Not handled |
+| State rule | Call with `duration >= 30` in the last 7 days | The caller supplies state 0 or 1 |
+| Input checks | None | Shape, range, NaN or Inf, row sums |
 
-past_days_connections = past_days_calls[past_days_calls['duration']>0].shape[0]
-past_days_engagements = past_days_calls[past_days_calls['duration'] >= 30].shape[0]
+The state order flip matters. `experiments/02_validate_vs_saheli.py` maps Bandicoot state $s$ to SAHELI state $1 - s$ and moves the action axis first. `planinf` then flips the states back.
 
-if past_days_engagements == 0:
-    curr_state = 3  # NE (Not Engaged / High-risk)
-else:
-    curr_state = 2  # E (Engaged / Low-risk)
-```
+## Agreement check
 
-**Rule:** If ANY call in last 7 days had duration ≥30 seconds → Engaged
-
-**Bandicoot Adaptation (for SMS):**
-```python
-# For SMS-based system
-past_week_sms = sms_logs[
-    (sms_logs["caregiver_id"]==cg_id) &
-    (sms_logs["sent_date"]>=today - 7)
-]
-
-opened = past_week_sms[past_week_sms['opened']==True].shape[0]
-
-if opened == 0:
-    state = "U"  # Unresponsive
-else:
-    state = "R"  # Responsive
-```
-
----
-
-## Whittle Index Computation
-
-### Algorithm: Binary Search + Value Iteration
-
-**File:** `whittle_utils.py` lines 45-167
-
-**Core Logic:**
-1. **Binary search** on subsidy value `m` to find indifference point
-2. **Value iteration** to compute Q-values for each subsidy
-3. Iterate until Q(s, passive) ≈ Q(s, active) (within 1e-5)
-
-```python
-def planinf(two_state_probs, sleeping_constraint=True, GAMMA=0.99):
-    '''
-    two_state_probs: transition probabilities [action, state, next_state]
-    Returns: [whittle_index_NE, whittle_index_E]
-    '''
-
-    # Initialize search bounds
-    high_m_values = 2 * np.ones(len(states))
-    low_m_values = -2 * np.ones(len(states))
-
-    max_q_diff = np.inf
-    while max_q_diff > 1e-5:
-        m_values = (low_m_values + high_m_values) / 2
-
-        # Value iteration inner loop
-        delta = np.inf
-        while delta > 0.0001:
-            for i in range(num_states):
-                v = v_values[i]
-                v_a = np.zeros(num_actions)
-                for k in range(num_actions):
-                    for j in range(num_states):
-                        v_a[k] += t_probs[i, j, k] * (
-                            get_reward(state[i], action[k], m_values[i])
-                            + gamma * v_values[j]
-                        )
-                v_values[i] = np.max(v_a)
-                delta = max(delta, abs(v_values[i] - v))
-
-        # Compute Q-values
-        for state in range(num_states):
-            for action in range(num_actions):
-                for next_state in range(num_states):
-                    q_values[state, action] += t_probs[state, next_state, action] * (
-                        get_reward(state, action, m_values[state])
-                        + gamma * v_values[next_state]
-                    )
-
-        # Find state with max Q-diff
-        max_q_diff = 0
-        for state in range(num_states):
-            if abs(q_values[state, 1] - q_values[state, 0]) > max_q_diff:
-                state_idx = state
-                max_q_diff = abs(q_values[state, 1] - q_values[state, 0])
-
-        # Update binary search bounds
-        if q_values[state_idx, 0] < q_values[state_idx, 1]:
-            low_m_values[state_idx] = m_values[state_idx]
-        else:
-            high_m_values[state_idx] = m_values[state_idx]
-
-    return [m_values[-1], m_values[-2]]  # [W_NE, W_E]
-```
-
-**Performance:** Converges in ~10-20 iterations per cluster-state pair
-
-**Bandicoot Implementation Notes:**
-- Matches our design exactly (docs/tech-design/02-rmab-core.md)
-- Convergence threshold: 1e-5 for Q-value difference
-- Convergence threshold: 0.0001 for value iteration delta
-- Need numerical stability checks (NaN/Inf detection)
-
----
-
-## Reward Function
-
-```python
-def get_reward(state, action, m):
-    if state[0] == "L":  # Low-risk (Engaged)
-        reward = 1.0
-    else:                # High-risk (Not Engaged)
-        reward = -1
-
-    if action == 'N':    # Passive action
-        reward += m       # Add subsidy for passive
-
-    return reward
-```
-
-**Interpretation:**
-- **Engaged state (L/R):** +1 reward (good outcome)
-- **Unresponsive state (H/U):** -1 reward (bad outcome)
-- **Passive action:** Gets subsidy `m` (found via binary search)
-- **Active action:** No subsidy
-
-**Bandicoot Adaptation:**
-We can use the same reward structure:
-```python
-def get_reward(state, action, m):
-    if state == "R":  # Responsive
-        reward = 1.0
-    else:             # Unresponsive
-        reward = -1.0
-
-    if action == "passive":
-        reward += m
-
-    return reward
-```
-
----
-
-## Pipeline Workflow
-
-**File:** `pipeline.py` - Main orchestration
-
-### Step-by-step execution:
-
-```python
-# 1. Load deployment parameters (budget K, date ranges)
-df_params = load_params_table()
-CONFIG['interventions'] = int(df_params['beneficiary_count'].to_list()[-1])
-
-# 2. Load beneficiary data (demographics + call history)
-static_features, beneficiary_data, call_data, user_ids = load_data(CONFIG)
-
-# 3. Load pre-trained clustering model (scikit-learn)
-cls, scaler = load_mapping_model(CONFIG)
-
-# 4. Load pre-computed Whittle indices (20 clusters x 2 states)
-m_values = load_precomputed_whittle_indices(CONFIG)
-
-# 5. Predict clusters for all beneficiaries
-cluster_predictions = cls.predict(scaler.transform(static_features))
-
-# 6. Load previous intervention list (avoid re-contacting)
-df_intervention, intervention_users = load_interventions_table(CONFIG)
-
-# 7. Compute current state and Whittle index for each beneficiary
-whittle_indices = []
-for idx, user_id in enumerate(user_ids):
-    if user_id in intervention_users:
-        continue  # Skip recently contacted
-
-    # Determine current state (E or NE)
-    past_week_calls = call_data[
-        (call_data["user_id"]==user_id) &
-        (call_data["startdate"]>=date_num - 7)
-    ]
-    engagements = past_week_calls[past_week_calls['duration'] >= 30].shape[0]
-    curr_state = 2 if engagements > 0 else 3  # E=2, NE=3
-
-    # Get cluster prediction
-    curr_cluster = cluster_predictions[idx]
-
-    # Fetch Whittle index for (cluster, state)
-    whittle_index = m_values[curr_cluster, curr_state]
-
-    whittle_indices.append({
-        'user_id': user_id,
-        'whittle_index': whittle_index,
-        'cluster': curr_cluster,
-        'start_state': 'E' if curr_state == 2 else 'NE',
-        'registration_date': beneficiary_data[beneficiary_data['user_id']==user_id]['registration_date'].item()
-    })
-
-# 8. Rank by Whittle index (descending)
-df = pd.DataFrame(whittle_indices)
-df = df.sort_values('whittle_index', ascending=False)
-
-# 9. Select top-K and push to intervention system
-df_interventions = df[:CONFIG["interventions"]]
-push_interventions(df_interventions, CONFIG)
-```
-
-**Key Insights:**
-1. **Pre-computation:** Clustering model and Whittle indices are pre-trained/computed
-2. **Real-time:** Only state determination and ranking happen in real-time
-3. **Simplicity:** ~50 lines of core logic for recommendation generation
-4. **Stateless:** Each run is independent (no complex state management)
-
----
-
-## Clustering Details
-
-**Method:** K-means on **passive transition probabilities**
-
-**Features for clustering:**
-- Extracted from historical call data
-- Focus on passive (no intervention) behavior
-- Demographics NOT used for clustering (used for cold-start FO mapper)
-
-**Parameters:**
-- k = 20 clusters
-- Warmup period: 6 weeks (need engagement history before clustering)
-
-**Bandicoot Notes:**
-- SAHELI doesn't show clustering code (in `data_utils.py` not in repo)
-- We need to implement from scratch based on docs/tech-design/02-rmab-core.md
-- Extract passive transition probabilities: P(R→R|passive), P(R→U|passive), etc.
-- Run k-means on feature vector per caregiver
-
----
-
-## Data Flow Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         OFFLINE TRAINING                         │
-│                                                                  │
-│  Historical Data (6 months)                                      │
-│         ↓                                                        │
-│  Extract Features (demographics, call patterns)                  │
-│         ↓                                                        │
-│  Clustering (K-means, k=20)                                      │
-│         ↓                                                        │
-│  Train FO Mapper (demographics → cluster)                        │
-│         ↓                                                        │
-│  Learn MDP Parameters (per cluster)                              │
-│         ↓                                                        │
-│  Compute Whittle Indices (20 clusters × 2 states)                │
-│         ↓                                                        │
-│  Save Models: clustering_model.pkl, fo_mapper.pkl, indices.pkl   │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                      ONLINE RECOMMENDATION                       │
-│                                                                  │
-│  Load Models (clustering, FO mapper, Whittle indices)            │
-│         ↓                                                        │
-│  Load Current Beneficiaries (demographics + recent calls)        │
-│         ↓                                                        │
-│  Predict Cluster (using FO mapper or historical data)            │
-│         ↓                                                        │
-│  Determine Current State (E or NE based on last 7 days)          │
-│         ↓                                                        │
-│  Fetch Whittle Index (from pre-computed table)                   │
-│         ↓                                                        │
-│  Rank by Whittle Index (descending)                              │
-│         ↓                                                        │
-│  Select Top-K (K=1000)                                           │
-│         ↓                                                        │
-│  Push to Intervention System                                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Key Observation:** Clear separation of offline (training) and online (inference) phases
-
----
-
-## Comparison with Bandicoot Design
-
-| Aspect | SAHELI | Bandicoot Plan | Match? |
-|--------|--------|----------------|--------|
-| **States** | 2 (E, NE) | 2 (R, U) | ✅ Same concept |
-| **Actions** | 2 (N, I) | 2 (passive, active) | ✅ Same |
-| **Clustering** | K-means, k=20 | K-means, k=15-25 | ✅ Same approach |
-| **Whittle Solver** | Binary search + value iteration | Binary search + value iteration | ✅ Exact match |
-| **Gamma** | 0.99 | 0.95 | ⚠️ Slightly different |
-| **Budget** | 1000/week | Configurable | ✅ Similar scale |
-| **Warmup** | 6 weeks | 6 weeks | ✅ Same |
-| **State Logic** | Duration ≥30s → E | SMS opened → R | ✅ Same pattern |
-| **Cold-start** | FO mapper (RandomForest) | FO mapper (RandomForest) | ✅ Same |
-| **Time step** | Weekly | Daily (configurable) | ⚠️ Different granularity |
-
-**Conclusion:** Our design is **highly aligned** with proven SAHELI approach
-
----
-
-## Key Learnings for Bandicoot
-
-### 1. **Library Structure**
-
-**SAHELI lesson:** Keep core logic simple and focused
-
-**Bandicoot structure:**
-```
-bandicoot/
-├── core/
-│   ├── clustering.py      # K-means on passive features
-│   ├── mdp.py             # MDP parameter learning
-│   ├── whittle.py         # Binary search + value iteration (from whittle_utils.py)
-│   ├── fo_mapper.py       # RandomForest for cold-start
-│   └── recommender.py     # Main orchestration (from pipeline.py)
-├── data/
-│   ├── loaders.py         # CSV/DataFrame loaders
-│   ├── preprocessors.py   # Feature extraction
-│   └── synthetic.py       # Data generator for testing
-└── utils/
-    ├── metrics.py         # Evaluation (precision@k, NDCG)
-    └── visualization.py   # Plotting for notebooks
-```
-
-### 2. **Whittle Index Implementation**
-
-**Copy the algorithm exactly from `whittle_utils.py`:**
-- Binary search convergence: `1e-5`
-- Value iteration convergence: `0.0001`
-- Search bounds: `[-2, 2]`
-- Gamma: Start with `0.99` (can experiment with 0.95)
-
-### 3. **State Determination**
-
-**Simple, rule-based approach:**
-```python
-def determine_state(caregiver_id, sms_logs, lookback_days=7):
-    recent_sms = sms_logs[
-        (sms_logs['caregiver_id'] == caregiver_id) &
-        (sms_logs['sent_date'] >= today - timedelta(days=lookback_days))
-    ]
-
-    opened_count = recent_sms[recent_sms['opened'] == True].shape[0]
-
-    return "R" if opened_count > 0 else "U"
-```
-
-### 4. **Recommendation Workflow**
-
-**Follow SAHELI's pipeline.py structure:**
-```python
-class BandicootRMAB:
-    def __init__(self, n_clusters=20, warmup_weeks=6, gamma=0.99):
-        self.n_clusters = n_clusters
-        self.warmup_weeks = warmup_weeks
-        self.gamma = gamma
-        self.clustering_model = None
-        self.fo_mapper = None
-        self.whittle_indices = None  # (n_clusters, 2) array
-
-    def fit(self, historical_df):
-        """Offline training phase"""
-        # 1. Extract features
-        features = self._extract_passive_features(historical_df)
-
-        # 2. Cluster
-        from sklearn.cluster import KMeans
-        self.clustering_model = KMeans(n_clusters=self.n_clusters)
-        cluster_assignments = self.clustering_model.fit_predict(features)
-
-        # 3. Train FO mapper
-        from sklearn.ensemble import RandomForestClassifier
-        demographics = self._extract_demographics(historical_df)
-        self.fo_mapper = RandomForestClassifier()
-        self.fo_mapper.fit(demographics, cluster_assignments)
-
-        # 4. Learn MDP parameters per cluster
-        mdp_params = self._learn_mdp_parameters(historical_df, cluster_assignments)
-
-        # 5. Compute Whittle indices
-        self.whittle_indices = np.zeros((self.n_clusters, 2))
-        for c in range(self.n_clusters):
-            self.whittle_indices[c] = planinf(
-                mdp_params[c]['transition_probs'],
-                gamma=self.gamma
-            )
-
-    def recommend(self, current_df, budget):
-        """Online recommendation phase"""
-        recommendations = []
-
-        for idx, row in current_df.iterrows():
-            # 1. Predict cluster
-            demographics = self._extract_demographics_row(row)
-            cluster = self.fo_mapper.predict([demographics])[0]
-
-            # 2. Determine current state
-            state = self._determine_state(row)
-            state_idx = 0 if state == "R" else 1
-
-            # 3. Fetch Whittle index
-            whittle_index = self.whittle_indices[cluster, state_idx]
-
-            recommendations.append({
-                'caregiver_id': row['caregiver_id'],
-                'whittle_index': whittle_index,
-                'cluster': cluster,
-                'state': state
-            })
-
-        # 4. Rank and select top-K
-        df = pd.DataFrame(recommendations)
-        df = df.sort_values('whittle_index', ascending=False)
-        return df.head(budget)
-```
-
-### 5. **Testing Strategy**
-
-**SAHELI doesn't show tests, but we should add:**
-- Unit tests for Whittle solver (validate properties)
-- Unit tests for state determination logic
-- Integration tests on synthetic data
-- Validation on historical Suvita data
-
-### 6. **Deployment Pattern**
-
-**SAHELI uses:**
-- Pre-trained models saved as `.pkl` files
-- Weekly training jobs (offline)
-- Daily recommendation generation (online)
-- Database integration for fetching data and pushing results
-
-**Bandicoot Phase 0 (Library):**
-- Pure Python, no database
-- Save models to pickle files
-- Focus on algorithm correctness
-
-**Bandicoot Phase 1 (Service):**
-- Wrap library in FastAPI
-- Add database layer
-- Add caching (Redis)
-
----
-
-## Adaptation Checklist for Suvita
-
-### Data Schema Mapping
-
-| SAHELI (Maternal) | Bandicoot (Immunization) |
-|-------------------|--------------------------|
-| Gestational age | Child age (months) |
-| Delivery status | Vaccination status |
-| Call duration | SMS opened/delivered |
-| Call engagement | SMS engagement |
-| Pregnancy parity | Number of children |
-| Registration hospital | Registration clinic |
-
-### Engagement Metrics
-
-**SAHELI:**
-- Call duration ≥30 seconds → Engaged
-- Lookback: 7 days
-
-**Bandicoot:**
-- SMS opened → Responsive
-- SMS delivered but not opened → Check delivery status
-- No SMS sent → Check if in warmup period
-- Lookback: 7 days (configurable)
-
-### Budget Constraints
-
-**SAHELI:**
-- 1000 interventions/week
-- 98K beneficiaries
-- Intervention rate: ~1%
-
-**Bandicoot (Suvita):**
-- Budget: TBD (ask Suvita)
-- Scale: 200K caregivers
-- Suggested: 1000-2000 SMS/day (7K-14K per week)
-
----
-
-## Implementation Priorities
-
-Based on SAHELI analysis, implement in this order:
-
-### Phase 0.1: Core Algorithms (Week 1)
-1. **Whittle solver** (`whittle.py`) - Copy from SAHELI, add tests
-2. **Clustering** (`clustering.py`) - K-means on passive features
-3. **MDP learning** (`mdp.py`) - Parameter estimation per cluster
-4. **State determination** - Simple rule-based logic
-
-### Phase 0.2: Integration (Week 1-2)
-5. **Recommender** (`recommender.py`) - Orchestration (follow pipeline.py)
-6. **FO mapper** (`fo_mapper.py`) - RandomForest for cold-start
-7. **Data loaders** (`loaders.py`) - CSV → DataFrame
-8. **Preprocessors** (`preprocessors.py`) - Feature extraction
-
-### Phase 0.3: Validation (Week 2)
-9. **Synthetic data generator** - For testing
-10. **Experiments** - Jupyter notebooks for validation
-11. **Documentation** - API reference
-12. **Suvita pilot** - 10K caregiver test
-
----
-
-## Code Reuse from SAHELI
-
-### Direct Copy (with attribution)
-- `whittle_utils.py` → `bandicoot/core/whittle.py`
-  - Keep the algorithm exactly as-is (proven to work)
-  - Add docstrings and type hints
-  - Add numerical stability checks
-
-### Adapt Structure
-- `pipeline.py` → `bandicoot/core/recommender.py`
-  - Same workflow, different data source
-  - Make it database-agnostic (use DataFrames)
-
-### Implement from Scratch
-- Clustering (not in SAHELI repo)
-- MDP learning (not in SAHELI repo)
-- FO mapper (not in SAHELI repo)
-- Data preprocessing (specific to Suvita)
-
----
-
-## Next Steps
-
-1. **Copy Whittle solver** from SAHELI to `bandicoot/core/whittle.py`
-2. **Create synthetic data generator** matching Suvita schema
-3. **Implement clustering** on synthetic data
-4. **Test Whittle solver** on synthetic MDP parameters
-5. **Build recommender** following pipeline.py pattern
-6. **Validate on synthetic data** (end-to-end)
-7. **Test on Suvita sample** (10K caregivers)
-
----
-
-**Author:** Bandicoot Team
-**Date:** November 2025
-**Status:** Analysis Complete → Ready for Implementation
+- `experiments/02_validate_vs_saheli.py` compares Bandicoot with `planinf(sleeping_constraint=False)` on 53 arms (3 synthetic, 50 random). All 53 differ by less than 0.0001 (see [INSIGHTS.md](../experiments/INSIGHTS.md)).
+- A rerun on 2026-10-14 with `whittle_utils.py` from GitHub gave the same result. The largest difference was 0.0000916.
+- The check does not cover the default sleeping mode. For the high-engagement synthetic arm, sleeping mode gives $W(E) = -0.10$ and $W(NE) = 0.29$ (rerun on 2026-10-14). Bandicoot gives 0.35 and 0.85.
+- Both solvers use one subsidy per state. In the two-state model, the result for the state with the higher index differs in general from the textbook Whittle index. See [rmab-fundamentals.md](rmab-fundamentals.md).
